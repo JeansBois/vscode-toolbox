@@ -269,6 +269,14 @@ export class ScriptExecutor {
     public isRunning(): boolean {
         return this.currentProcess !== undefined && !this.currentProcess.killed;
     }
+
+    /**
+     * Gets the process ID of the currently running process
+     * @returns The process ID or undefined if no process is running
+     */
+    public getCurrentProcessId(): number | undefined {
+        return this.currentProcess?.pid;
+    }
 }
 
 // Classe principale du Runtime Python (maintient la rétrocompatibilité)
@@ -298,6 +306,14 @@ export class PythonRuntime {
 
     public killProcess(): void {
         this.executor.killProcess();
+    }
+
+    /**
+     * Gets the process ID of the currently running Python process
+     * @returns The process ID or undefined if no process is running
+     */
+    public getCurrentProcessId(): number | undefined {
+        return this.executor.getCurrentProcessId();
     }
 
     public async getPythonVersion(): Promise<string | undefined> {

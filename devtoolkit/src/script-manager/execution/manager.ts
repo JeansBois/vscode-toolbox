@@ -20,6 +20,7 @@ export class ExecutionManager {
         monitor: ResourceMonitor;
         resourceUsage?: ResourceUsage;
         timeout?: number;
+        limitCheckInterval?: NodeJS.Timeout;
     }>;
     private static instance: ExecutionManager;
     // Default timeout of 60 seconds if not specified
@@ -61,7 +62,24 @@ export class ExecutionManager {
             const startTime = Date.now();
             const timeout = options.timeout || ExecutionManager.DEFAULT_TIMEOUT;
             
-            // Store execution details with timeout
+            // Set up resource limits
+            const resourceLimits = {
+                maxCpu: options.maxCpu || manifest.execution.resource_limits?.cpu,
+                maxMemory: options.maxMemory || manifest.execution.resource_limits?.memory,
+                maxDuration: (options.timeout ? options.timeout / 1000 : undefined) || 
+                             manifest.execution.resource_limits?.duration
+            };
+            
+            // Log resource limit settings
+            this.logger.logInfo(scriptId, `Executing script with timeout: ${timeout}ms and resource limits: ${
+                JSON.stringify({
+                    cpu: resourceLimits.maxCpu ? `${resourceLimits.maxCpu}%` : 'unlimited',
+                    memory: resourceLimits.maxMemory ? `${resourceLimits.maxMemory}MB` : 'unlimited',
+                    duration: resourceLimits.maxDuration ? `${resourceLimits.maxDuration}s` : `${timeout}ms`
+                })
+            }`);
+            
+            // Store execution details before starting
             this.activeExecutions.set(scriptId, {
                 startTime,
                 monitor,
@@ -74,10 +92,9 @@ export class ExecutionManager {
                 maxCpu: options.maxCpu,
                 env
             };
-            
-            this.logger.logInfo(scriptId, `Executing script with timeout: ${timeout}ms`);
 
-            const pythonResult = await this.pythonRuntime.executeScript(
+            // Start execution of the Python script
+            const pythonExecution = this.pythonRuntime.executeScript(
                 manifest.execution.entry_point,
                 this.formatParams(params),
                 {
@@ -99,11 +116,52 @@ export class ExecutionManager {
                     }
                 }
             );
+            
+            // Get process ID and start resource monitoring
+            const processId = this.pythonRuntime.getCurrentProcessId();
+            
+            if (processId) {
+                // Set up limit monitoring with process ID
+                monitor.start(processId);
+                
+                // Set up listener for resource limit violations
+                monitor.on('limit-exceeded', (violation: any) => {
+                    this.logger.logWarning(scriptId, 
+                        `Resource limit exceeded: ${violation.resource} (${violation.current}${violation.unit} > ${violation.limit}${violation.unit})`
+                    );
+                    
+                    this.killExecution(scriptId);
+                    
+                    this.eventManager.notifyExecutionFailed(scriptId, new Error(
+                        `Script terminated: exceeded ${violation.resource} limit (${violation.current}${violation.unit} > ${violation.limit}${violation.unit})`
+                    ));
+                });
+                
+                // Set up regular checks for resource limits
+                const limitCheckInterval = setInterval(() => {
+                    monitor.enforceResourceLimits(resourceLimits);
+                }, 2000); // Check every 2 seconds
+                
+                // Update execution details with limitCheckInterval
+                this.activeExecutions.set(scriptId, {
+                    ...this.activeExecutions.get(scriptId)!,
+                    limitCheckInterval
+                });
+            } else {
+                this.logger.logWarning(scriptId, "Unable to get process ID for resource monitoring");
+            }
+            
+            // Wait for the execution to complete
+            const pythonResult = await pythonExecution;
 
             // Arrêter le monitoring
             monitor.stop();
             
             // Nettoyer
+            const execution = this.activeExecutions.get(scriptId);
+            if (execution?.limitCheckInterval) {
+                clearInterval(execution.limitCheckInterval);
+            }
             this.activeExecutions.delete(scriptId);
             
             // Handle timeout specifically
@@ -188,6 +246,11 @@ export class ExecutionManager {
         if (execution) {
             this.pythonRuntime.killProcess();
             execution.monitor.stop();
+            
+            if (execution.limitCheckInterval) {
+                clearInterval(execution.limitCheckInterval);
+            }
+            
             this.activeExecutions.delete(scriptId);
             
             this.eventManager.notifyExecutionCancelled(scriptId);

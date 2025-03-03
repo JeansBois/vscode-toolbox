@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { MainPanel } from './webview/panel';
 import { ScriptManager } from './script-manager/manager';
 import { ChecklistManager } from './file-manager/checklist';
@@ -27,40 +28,159 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Enregistrement de la commande pour ouvrir le panneau
     let openPanelCommand = vscode.commands.registerCommand('devtoolkit.openPanel', () => {
-        MainPanel.createOrShow(context.extensionUri);
+        try {
+            // Validate extension context is available
+            if (!context.extensionUri) {
+                throw new Error('Extension context URI is not available');
+            }
+            
+            console.log('Opening DevToolkit panel...');
+            MainPanel.createOrShow(context.extensionUri);
+            
+            // Log success
+            console.log('DevToolkit panel opened successfully');
+        } catch (error: unknown) {
+            // Extract error message with proper type handling
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : String(error);
+                
+            // Show user-friendly error
+            vscode.window.showErrorMessage(`Failed to open DevToolkit panel: ${errorMessage}`);
+            
+            // Log full error for debugging
+            console.error('Error opening DevToolkit panel:', error);
+        }
     });
 
     // Commande pour exécuter un script
     let runScriptCommand = vscode.commands.registerCommand('devtoolkit.runScript', async (scriptPath: string) => {
+        console.log(`Executing script: ${scriptPath}`);
+        
+        // Validate required components
         if (!scriptManager || !pythonRuntime) {
-            vscode.window.showErrorMessage('Extension not properly initialized');
+            const errorMessage = 'DevToolkit components not properly initialized';
+            vscode.window.showErrorMessage(`Script execution failed: ${errorMessage}`);
+            console.error('Script command error:', errorMessage);
             return;
         }
-
+        
+        // Validate input
+        if (!scriptPath) {
+            const errorMessage = 'No script path provided';
+            vscode.window.showErrorMessage(`Script execution failed: ${errorMessage}`);
+            console.error('Script command error:', { scriptPath, error: errorMessage });
+            return;
+        }
+        
         try {
+            // Get script content - validate it exists
             const scriptContent = await scriptManager.getScriptContent(scriptPath);
             if (!scriptContent) {
-                throw new Error('Script not found');
+                throw new Error(`Script not found: ${path.basename(scriptPath)}`);
             }
-            const result = await pythonRuntime.executeScript(scriptPath);
+            
+            // Execute with progress indication and cancellation support
+            const result = await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: `Running script: ${path.basename(scriptPath)}`,
+                cancellable: true
+            }, async (progress, token) => {
+                // Set up cancellation
+                token.onCancellationRequested(() => {
+                    console.log(`Script execution cancelled by user: ${scriptPath}`);
+                    pythonRuntime!.killProcess();
+                });
+                
+                // Show progress
+                progress.report({ message: 'Executing...' });
+                
+                // Execute the script
+                return await pythonRuntime!.executeScript(scriptPath);
+            });
+            
+            // Handle the result
             if (result.exitCode === 0) {
-                vscode.window.showInformationMessage('Script executed successfully');
+                const successMessage = `Script executed successfully: ${path.basename(scriptPath)}`;
+                vscode.window.showInformationMessage(successMessage);
+                console.log(successMessage);
             } else {
-                vscode.window.showErrorMessage(`Execution error: ${result.stderr}`);
+                // Format error details for display
+                const errorDetails = result.stderr ? `: ${result.stderr}` : '';
+                const errorMessage = `Script execution failed with exit code ${result.exitCode}${errorDetails}`;
+                
+                vscode.window.showErrorMessage(errorMessage);
+                
+                // Log full error for debugging
+                console.error(`Script execution error:`, {
+                    scriptPath,
+                    exitCode: result.exitCode,
+                    stderr: result.stderr,
+                    stdout: result.stdout
+                });
             }
-        } catch (error) {
-            vscode.window.showErrorMessage(`Error: ${error}`);
+        } catch (error: unknown) {
+            // Extract error message with proper type handling
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : String(error);
+                
+            vscode.window.showErrorMessage(`Script execution error: ${errorMessage}`);
+            
+            // Log full error for debugging
+            console.error(`Script command error:`, {
+                scriptPath,
+                error
+            });
         }
     });
 
     // Commande pour ajouter un fichier à la checklist
     let addToChecklistCommand = vscode.commands.registerCommand('devtoolkit.addToChecklist', (uri: vscode.Uri) => {
+        console.log('Adding file to checklist:', uri?.fsPath);
+        
+        // Validate required components
         if (!checklistManager) {
-            vscode.window.showErrorMessage('Extension not properly initialized');
+            const errorMessage = 'DevToolkit components not properly initialized';
+            vscode.window.showErrorMessage(`Failed to add to checklist: ${errorMessage}`);
+            console.error('Checklist command error:', errorMessage);
             return;
         }
-        checklistManager.addItem(uri.fsPath);
-        vscode.window.showInformationMessage('File added to checklist');
+        
+        // Validate input
+        if (!uri || !uri.fsPath) {
+            const errorMessage = 'No valid file selected';
+            vscode.window.showErrorMessage(`Failed to add to checklist: ${errorMessage}`);
+            console.error('Checklist command error:', { uri, error: errorMessage });
+            return;
+        }
+        
+        try {
+            // Validate file exists
+            const fileName = path.basename(uri.fsPath);
+            
+            // Add the item to checklist
+            checklistManager.addItem(uri.fsPath);
+            
+            // Show success message with file name for better context
+            const successMessage = `Added to checklist: ${fileName}`;
+            vscode.window.showInformationMessage(successMessage);
+            console.log(successMessage);
+        } catch (error: unknown) {
+            // Extract error message with proper type handling
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : String(error);
+            
+            // Show user-friendly error with context
+            vscode.window.showErrorMessage(`Failed to add to checklist: ${errorMessage}`);
+            
+            // Log full error for debugging
+            console.error('Checklist command error:', {
+                filePath: uri.fsPath,
+                error
+            });
+        }
     });
 
     // Création des providers pour la barre d'activité

@@ -23,6 +23,9 @@ export class ResourceMonitor extends EventEmitter {
     public start(processId: number): void {
         this.processId = processId;
         this.interval = setInterval(() => this.measure(), 1000);
+        
+        // Reset measurements when starting
+        this.measurements.length = 0;
     }
 
     public stop(): void {
@@ -148,8 +151,11 @@ export class ResourceMonitor extends EventEmitter {
     public isExceedingLimits(limits: {
         maxCpu?: number;
         maxMemory?: number;
+        maxDuration?: number;
     }): boolean {
         const usage = this.getAverageUsage();
+        const startTime = this.measurements[0]?.timestamp;
+        const now = Date.now();
         
         if (limits.maxCpu && usage.currentCpu > limits.maxCpu) {
             return true;
@@ -159,6 +165,58 @@ export class ResourceMonitor extends EventEmitter {
             return true;
         }
         
+        if (limits.maxDuration && startTime && (now - startTime) / 1000 > limits.maxDuration) {
+            return true;
+        }
+        
         return false;
+    }
+    
+    /**
+     * Checks resource usage against configured limits and emits events if limits are exceeded
+     * @param limits Configuration object containing resource limits
+     */
+    public enforceResourceLimits(limits: {
+        maxCpu?: number;
+        maxMemory?: number;
+        maxDuration?: number;
+    }): void {
+        if (!this.interval) {
+            return; // Not monitoring yet
+        }
+
+        const usage = this.getAverageUsage();
+        const startTime = this.measurements[0]?.timestamp;
+        const now = Date.now();
+        
+        // Check CPU limit
+        if (limits.maxCpu && usage.currentCpu > limits.maxCpu) {
+            this.emit('limit-exceeded', {
+                resource: 'cpu',
+                current: usage.currentCpu,
+                limit: limits.maxCpu,
+                unit: '%'
+            });
+        }
+        
+        // Check memory limit (in MB)
+        if (limits.maxMemory && usage.currentMemory > limits.maxMemory) {
+            this.emit('limit-exceeded', {
+                resource: 'memory',
+                current: usage.currentMemory,
+                limit: limits.maxMemory,
+                unit: 'MB'
+            });
+        }
+        
+        // Check duration limit (in seconds)
+        if (limits.maxDuration && startTime && (now - startTime) / 1000 > limits.maxDuration) {
+            this.emit('limit-exceeded', {
+                resource: 'duration',
+                current: (now - startTime) / 1000,
+                limit: limits.maxDuration,
+                unit: 'seconds'
+            });
+        }
     }
 }

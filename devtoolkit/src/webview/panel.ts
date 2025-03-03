@@ -179,20 +179,35 @@ export class MainPanel {
         }
     }
 
-    private _getWebviewContent(extensionUri: vscode.Uri) {
-        // Obtenir les URIs pour les ressources
-        const webviewUri = this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js'));
-        const mainUri = this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'styles', 'main.css'));
-        const themesUri = this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'styles', 'themes.css'));
-        const componentsUri = this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'styles', 'components.css'));
-        const codiconUri = this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css'));
-
-        // Configurer les options de sécurité du webview
+    private _getWebviewContent(extensionUri: vscode.Uri): string {
         const nonce = this.getNonce();
-
+        const resourceUris = this._getResourceUris(extensionUri);
+        
         return `<!DOCTYPE html>
             <html lang="en">
-            <head>
+            ${this._getHeaderHtml(resourceUris, nonce)}
+            ${this._getBodyHtml(resourceUris, nonce)}
+            </html>`;
+    }
+    
+    /**
+     * Gets all resource URIs needed for the webview
+     */
+    private _getResourceUris(extensionUri: vscode.Uri): Record<string, vscode.Uri> {
+        return {
+            webview: this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js')),
+            mainCss: this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'styles', 'main.css')),
+            themesCss: this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'styles', 'themes.css')),
+            componentsCss: this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'styles', 'components.css')),
+            codiconCss: this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css')),
+        };
+    }
+    
+    /**
+     * Generates the HTML for the head section including all necessary meta tags and stylesheets
+     */
+    private _getHeaderHtml(resourceUris: Record<string, vscode.Uri>, nonce: string): string {
+        return `<head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>DevToolkit</title>
@@ -204,46 +219,72 @@ export class MainPanel {
                     connect-src 'none';
                     font-src ${this._panel.webview.cspSource};
                 ">
-                <link href="${codiconUri}" rel="stylesheet" nonce="${nonce}" />
-                <link href="${mainUri}" rel="stylesheet" nonce="${nonce}" />
-                <link href="${themesUri}" rel="stylesheet" nonce="${nonce}" />
-                <link href="${componentsUri}" rel="stylesheet" nonce="${nonce}" />
-            </head>
-            <body>
+                <link href="${resourceUris.codiconCss}" rel="stylesheet" nonce="${nonce}" />
+                <link href="${resourceUris.mainCss}" rel="stylesheet" nonce="${nonce}" />
+                <link href="${resourceUris.themesCss}" rel="stylesheet" nonce="${nonce}" />
+                <link href="${resourceUris.componentsCss}" rel="stylesheet" nonce="${nonce}" />
+            </head>`;
+    }
+    
+    /**
+     * Generates the HTML for the body section including sidebar, main content, and scripts
+     */
+    private _getBodyHtml(resourceUris: Record<string, vscode.Uri>, nonce: string): string {
+        return `<body>
                 <div class="container">
-                    <!-- Sidebar -->
-                    <div class="sidebar">
-                        <div class="scripts-section">
-                            <h2 class="section-title">Scripts</h2>
-                            <div id="scripts-list"></div>
-                        </div>
-                        <div class="files-section">
-                            <h2 class="section-title">Files</h2>
-                            <div id="file-tree"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Main content -->
-                    <div class="main-content">
-                        <div class="script-config">
-                            <div id="script-details"></div>
-                            <div id="script-inputs"></div>
-                            <div class="script-actions">
-                                <button id="run-script" class="primary-button" disabled>
-                                    <span class="codicon codicon-play"></span>
-                                    Execute
-                                </button>
-                                <button id="cancel-script" class="secondary-button" disabled>
-                                    <span class="codicon codicon-stop"></span>
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                        <div id="output-panel" class="output-panel"></div>
-                    </div>
+                    ${this._getSidebarHtml()}
+                    ${this._getMainContentHtml()}
                 </div>
-
-                <script nonce="${nonce}" src="${webviewUri}"></script>
+                ${this._getScriptsHtml(resourceUris, nonce)}
+            </body>`;
+    }
+    
+    /**
+     * Generates the HTML for the sidebar section
+     */
+    private _getSidebarHtml(): string {
+        return `<!-- Sidebar -->
+                <div class="sidebar">
+                    <div class="scripts-section">
+                        <h2 class="section-title">Scripts</h2>
+                        <div id="scripts-list"></div>
+                    </div>
+                    <div class="files-section">
+                        <h2 class="section-title">Files</h2>
+                        <div id="file-tree"></div>
+                    </div>
+                </div>`;
+    }
+    
+    /**
+     * Generates the HTML for the main content section
+     */
+    private _getMainContentHtml(): string {
+        return `<!-- Main content -->
+                <div class="main-content">
+                    <div class="script-config">
+                        <div id="script-details"></div>
+                        <div id="script-inputs"></div>
+                        <div class="script-actions">
+                            <button id="run-script" class="primary-button" disabled>
+                                <span class="codicon codicon-play"></span>
+                                Execute
+                            </button>
+                            <button id="cancel-script" class="secondary-button" disabled>
+                                <span class="codicon codicon-stop"></span>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                    <div id="output-panel" class="output-panel"></div>
+                </div>`;
+    }
+    
+    /**
+     * Generates the HTML for the scripts section including initialization code
+     */
+    private _getScriptsHtml(resourceUris: Record<string, vscode.Uri>, nonce: string): string {
+        return `<script nonce="${nonce}" src="${resourceUris.webview}"></script>
                 <script nonce="${nonce}">
                     // Initialisation des composants
                     const scriptsList = new ScriptsList('scripts-list');
@@ -310,9 +351,7 @@ export class MainPanel {
                             });
                         }
                     });
-                </script>
-            </body>
-            </html>`;
+                </script>`;
     }
 
     private getNonce() {
