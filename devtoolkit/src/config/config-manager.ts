@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { ExtensionContext } from 'vscode';
 
 export interface ExtensionConfig {
     pythonPath: string;
@@ -34,12 +35,18 @@ export interface ExtensionConfig {
 
 type ConfigurationTarget = vscode.ConfigurationTarget.Global | vscode.ConfigurationTarget.Workspace;
 
+// Define more specific types for configuration updates
+type ConfigSection = keyof ExtensionConfig | string;
+type ConfigValue<T extends ConfigSection> = T extends keyof ExtensionConfig 
+    ? ExtensionConfig[T] 
+    : unknown;
+
 export class ConfigManager { // Trigger re-compilation
     private static instance: ConfigManager;
     private readonly configSection = 'devtoolkit';
     private readonly defaultConfig: ExtensionConfig;
 
-    private constructor(context: vscode.ExtensionContext) {
+    private constructor(context: ExtensionContext) {
         this.defaultConfig = {
             pythonPath: 'python',
             scriptsDirectory: path.join(context.extensionPath, 'scripts'),
@@ -72,7 +79,7 @@ export class ConfigManager { // Trigger re-compilation
         };
     }
 
-    public static initialize(context: vscode.ExtensionContext): ConfigManager {
+    public static initialize(context: ExtensionContext): ConfigManager {
         if (!ConfigManager.instance) {
             ConfigManager.instance = new ConfigManager(context);
         }
@@ -120,9 +127,9 @@ export class ConfigManager { // Trigger re-compilation
         };
     }
 
-    public async updateConfiguration(
-        section: keyof ExtensionConfig | string,
-        value: any,
+    public async updateConfiguration<T extends ConfigSection>(
+        section: T,
+        value: ConfigValue<T>,
         target: ConfigurationTarget = vscode.ConfigurationTarget.Global
     ): Promise<void> {
         const config = vscode.workspace.getConfiguration(this.configSection);
@@ -178,21 +185,33 @@ export class ConfigManager { // Trigger re-compilation
     }
 
     public async migrateFromLegacy(): Promise<void> {
-        const legacyConfig = vscode.workspace.getConfiguration('python');
-        const pythonPath = legacyConfig.get<string>('defaultInterpreterPath');
-        
-        if (pythonPath) {
-            await this.updateConfiguration('pythonPath', pythonPath);
+        try {
+            const legacyConfig = vscode.workspace.getConfiguration('python');
+            const pythonPath = legacyConfig.get<string>('defaultInterpreterPath');
+            
+            if (pythonPath) {
+                await this.updateConfiguration('pythonPath', pythonPath);
+            }
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : String(error);
+            
+            console.error('Error migrating from legacy configuration:', error);
+            vscode.window.showErrorMessage(`Migration error: ${errorMessage}`);
+            throw error;
         }
     }
 }
 
 async function testValidation() {
+    // Mock the context with minimal properties needed
     const context = {
-        extensionPath: '/test/path',
-        storagePath: '/test/storage',
-        globalStoragePath: '/test/global/storage',
-    } as any;
+        extensionPath: path.resolve('/test/path'),
+        storagePath: path.resolve('/test/storage'),
+        globalStoragePath: path.resolve('/test/global/storage'),
+    } as unknown as ExtensionContext;
+    
     ConfigManager.initialize(context);
     const configManager = ConfigManager.getInstance();
     const errors = configManager.validateConfiguration();

@@ -1,4 +1,4 @@
-import { PythonRuntime } from '../../python-runtime/process';
+import { PythonRuntime, ExecutionResult as PythonExecutionResult } from '../../python-runtime/process';
 import { ScriptEventManager } from '../core/events';
 import { ScriptManifest, ExecutionResult, ScriptStatus, ExecutionProgress } from '../types';
 import { ResourceMonitor, ResourceUsage } from './resource-monitor';
@@ -19,8 +19,11 @@ export class ExecutionManager {
         startTime: number;
         monitor: ResourceMonitor;
         resourceUsage?: ResourceUsage;
+        timeout?: number;
     }>;
     private static instance: ExecutionManager;
+    // Default timeout of 60 seconds if not specified
+    private static readonly DEFAULT_TIMEOUT = 60000;
 
     private constructor() {
         this.pythonRuntime = new PythonRuntime();
@@ -56,15 +59,25 @@ export class ExecutionManager {
             // Démarrer le monitoring
             const monitor = new ResourceMonitor();
             const startTime = Date.now();
+            const timeout = options.timeout || ExecutionManager.DEFAULT_TIMEOUT;
+            
+            // Store execution details with timeout
+            this.activeExecutions.set(scriptId, {
+                startTime,
+                monitor,
+                timeout
+            });
             
             const processOptions = {
-                timeout: options.timeout,
+                timeout,
                 maxMemory: options.maxMemory,
                 maxCpu: options.maxCpu,
                 env
             };
+            
+            this.logger.logInfo(scriptId, `Executing script with timeout: ${timeout}ms`);
 
-            const result = await this.pythonRuntime.executeScript(
+            const pythonResult = await this.pythonRuntime.executeScript(
                 manifest.execution.entry_point,
                 this.formatParams(params),
                 {
@@ -93,17 +106,36 @@ export class ExecutionManager {
             // Nettoyer
             this.activeExecutions.delete(scriptId);
             
+            // Handle timeout specifically
+            if (pythonResult.timedOut) {
+                this.logger.logError(scriptId, new Error(`Script execution timed out after ${timeout}ms`));
+                this.eventManager.notifyExecutionFailed(scriptId, new Error(`Timeout: Script execution exceeded the ${timeout}ms limit`));
+                
+                return {
+                    success: false,
+                    output: pythonResult.stdout,
+                    error: `Timeout: Script execution exceeded the ${timeout}ms limit`,
+                    duration: pythonResult.duration
+                };
+            }
+            
             // Mettre à jour les statistiques
             await this.updateExecutionStats(manifest, {
-                success: result.exitCode === 0,
-                output: result.stdout,
-                error: result.stderr,
-                duration: result.duration
+                success: pythonResult.exitCode === 0,
+                output: pythonResult.stdout,
+                error: pythonResult.stderr,
+                duration: pythonResult.duration
             });
             
             return {
-                ...result,
-                success: result.exitCode === 0
+                success: pythonResult.exitCode === 0,
+                output: pythonResult.stdout,
+                error: pythonResult.stderr,
+                duration: pythonResult.duration,
+                resourceUsage: {
+                    peakMemory: monitor.getPeakUsage().peakMemory,
+                    averageCpu: monitor.getAverageUsage().currentCpu
+                }
             };
         } catch (error) {
             const errorResult: ExecutionResult = {

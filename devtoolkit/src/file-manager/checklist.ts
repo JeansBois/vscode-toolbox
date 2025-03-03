@@ -60,20 +60,21 @@ class FileTreeManager {
 
     // Construction et mise à jour de l'arbre
     async buildFileTree(rootPath: string): Promise<FileNode> {
-        const stats = await fs.promises.stat(rootPath);
+        const normalizedPath = path.normalize(rootPath);
+        const stats = await fs.promises.stat(normalizedPath);
         const node: FileNode = {
-            path: rootPath,
+            path: normalizedPath,
             type: stats.isDirectory() ? 'directory' : 'file',
-            name: path.basename(rootPath),
+            name: path.basename(normalizedPath),
             checked: false,
-            metadata: await this.getFileMetadata(rootPath, stats),
+            metadata: await this.getFileMetadata(normalizedPath, stats),
             tags: []
         };
 
         if (node.type === 'directory') {
-            const entries = await fs.promises.readdir(rootPath);
+            const entries = await fs.promises.readdir(normalizedPath);
             node.children = await Promise.all(
-                entries.map(entry => this.buildFileTree(path.join(rootPath, entry)))
+                entries.map(entry => this.buildFileTree(path.join(normalizedPath, entry)))
             );
         }
 
@@ -94,7 +95,9 @@ class FileTreeManager {
     private async getGitStatus(filePath: string): Promise<GitStatus | undefined> {
         try {
             const status = await this.git.status();
-            const relativePath = path.relative(this.workspaceRoot, filePath);
+            const normalizedWorkspaceRoot = path.normalize(this.workspaceRoot);
+            const normalizedFilePath = path.normalize(filePath);
+            const relativePath = path.relative(normalizedWorkspaceRoot, normalizedFilePath);
             
             return {
                 modified: status.modified.includes(relativePath),
@@ -120,20 +123,25 @@ class FileTreeManager {
 
     async moveNode(sourcePath: string, targetPath: string): Promise<void> {
         this.saveStateForUndo();
-        const sourceNode = this.findNode(sourcePath);
-        const targetParentPath = path.dirname(targetPath);
+        const normalizedSourcePath = path.normalize(sourcePath);
+        const normalizedTargetPath = path.normalize(targetPath);
+        const targetParentPath = path.dirname(normalizedTargetPath);
+        
+        const sourceNode = this.findNode(normalizedSourcePath);
         const targetParent = this.findNode(targetParentPath);
 
         if (sourceNode && targetParent && targetParent.type === 'directory') {
             // Supprimer du parent source
-            const sourceParent = this.findNode(path.dirname(sourcePath));
+            const sourceParentPath = path.dirname(normalizedSourcePath);
+            const sourceParent = this.findNode(sourceParentPath);
             if (sourceParent && sourceParent.children) {
-                sourceParent.children = sourceParent.children.filter(n => n.path !== sourcePath);
+                sourceParent.children = sourceParent.children.filter(n => 
+                    path.normalize(n.path) !== normalizedSourcePath);
             }
 
             // Mettre à jour le chemin et ajouter au nouveau parent
-            sourceNode.path = targetPath;
-            sourceNode.name = path.basename(targetPath);
+            sourceNode.path = normalizedTargetPath;
+            sourceNode.name = path.basename(normalizedTargetPath);
             if (!targetParent.children) targetParent.children = [];
             targetParent.children.push(sourceNode);
 
@@ -255,8 +263,9 @@ class FileTreeManager {
 
     // Utilitaires
     private findNode(nodePath: string, root?: FileNode): FileNode | undefined {
+        const normalizedPath = path.normalize(nodePath);
         const nodes = root ? [root] : this.getAllNodes();
-        return nodes.find(node => node.path === nodePath);
+        return nodes.find(node => path.normalize(node.path) === normalizedPath);
     }
 
     private getAllNodes(root?: FileNode): FileNode[] {
@@ -320,7 +329,7 @@ class WorkspaceStorage implements StorageProvider {
         private readonly context: vscode.ExtensionContext,
         private readonly onFileChange: () => void
     ) {
-        this.watcher = vscode.workspace.createFileSystemWatcher('**/*');
+        this.watcher = vscode.workspace.createFileSystemWatcher(path.join('**', '*'));
         this.setupWatcher();
     }
 

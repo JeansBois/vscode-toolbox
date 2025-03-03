@@ -34,6 +34,7 @@ export interface ExecutionResult {
     stderr: string;
     exitCode: number | null;
     duration: number;
+    timedOut?: boolean;
 }
 
 // Gestionnaire d'environnement Python
@@ -53,7 +54,7 @@ export class PythonEnvironmentManager {
     }
 
     public async createVirtualEnv(name: string): Promise<string> {
-        const storageUri = vscode.Uri.file(path.join(this.configManager.getConfiguration().scriptsDirectory, '../storage'));
+        const storageUri = vscode.Uri.file(path.resolve(this.configManager.getConfiguration().scriptsDirectory, '../storage'));
         const venvPath = path.join(storageUri.fsPath, 'venvs', name);
         const executor = new ScriptExecutor();
         
@@ -61,7 +62,7 @@ export class PythonEnvironmentManager {
             await executor.executeCommand(['-m', 'venv', venvPath]);
             return venvPath;
         } catch (error) {
-            throw new Error(`Erreur lors de la création de l'environnement virtuel: ${error}`);
+            throw new Error(`Error creating virtual environment: ${error}`);
         }
     }
 
@@ -71,11 +72,12 @@ export class PythonEnvironmentManager {
             : path.join(venvPath, 'bin', 'activate');
 
         if (!await this.pathExists(activateScript)) {
-            throw new Error(`Script d'activation non trouvé: ${activateScript}`);
+            throw new Error(`Activation script not found: ${activateScript}`);
         }
 
         process.env.VIRTUAL_ENV = venvPath;
-        process.env.PATH = `${path.join(venvPath, 'bin')}${path.delimiter}${process.env.PATH}`;
+        const binPath = path.join(venvPath, process.platform === 'win32' ? 'Scripts' : 'bin');
+        process.env.PATH = `${binPath}${path.delimiter}${process.env.PATH}`;
     }
 
     public async installPackage(name: string, version?: string): Promise<void> {
@@ -85,7 +87,7 @@ export class PythonEnvironmentManager {
         try {
             await executor.executeCommand(['-m', 'pip', 'install', packageSpec]);
         } catch (error) {
-            throw new Error(`Erreur lors de l'installation du package ${packageSpec}: ${error}`);
+            throw new Error(`Error installing package ${packageSpec}: ${error}`);
         }
     }
 
@@ -95,7 +97,7 @@ export class PythonEnvironmentManager {
         try {
             await executor.executeCommand(['-m', 'pip', 'uninstall', '-y', name]);
         } catch (error) {
-            throw new Error(`Erreur lors de la désinstallation du package ${name}: ${error}`);
+            throw new Error(`Error uninstalling package ${name}: ${error}`);
         }
     }
 
@@ -106,7 +108,7 @@ export class PythonEnvironmentManager {
             const result = await executor.executeCommand(['-m', 'pip', 'list', '--format=json']);
             return JSON.parse(result.stdout);
         } catch (error) {
-            throw new Error(`Erreur lors de la liste des packages: ${error}`);
+            throw new Error(`Error listing packages: ${error}`);
         }
     }
 
@@ -133,7 +135,7 @@ export class PythonEnvironmentManager {
 
     private async pathExists(filePath: string): Promise<boolean> {
         try {
-            const uri = vscode.Uri.file(filePath);
+            const uri = vscode.Uri.file(path.normalize(filePath));
             const stat = await vscode.workspace.fs.stat(uri);
             return stat !== undefined;
         } catch {
@@ -183,7 +185,9 @@ export class ScriptExecutor {
                     ...process.env,
                     ...options.env,
                     PYTHONUNBUFFERED: '1'
-                }
+                },
+                // Ensure process tree can be killed properly
+                detached: process.platform !== 'win32'
             });
 
             this.currentProcess.stdout?.on('data', (data: Buffer) => {
@@ -202,9 +206,10 @@ export class ScriptExecutor {
                 this.killProcess();
                 resolve({
                     stdout,
-                    stderr: `Processus interrompu après ${timeout}ms`,
+                    stderr: `Script execution timed out after ${timeout}ms`,
                     exitCode: null,
-                    duration: Date.now() - startTime
+                    duration: Date.now() - startTime,
+                    timedOut: true
                 });
             }, timeout);
 
@@ -216,7 +221,8 @@ export class ScriptExecutor {
                     stdout,
                     stderr,
                     exitCode: code,
-                    duration
+                    duration,
+                    timedOut: false
                 });
             });
 
@@ -228,7 +234,8 @@ export class ScriptExecutor {
                     stdout,
                     stderr: error.message,
                     exitCode: null,
-                    duration
+                    duration,
+                    timedOut: false
                 });
             });
         });
@@ -236,7 +243,25 @@ export class ScriptExecutor {
 
     public killProcess(): void {
         if (this.currentProcess) {
-            this.currentProcess.kill();
+            if (process.platform === 'win32') {
+                // On Windows, use taskkill to ensure all child processes are terminated
+                try {
+                    cp.execSync(`taskkill /pid ${this.currentProcess.pid} /T /F`, { windowsHide: true });
+                } catch (error) {
+                    // Fall back to regular kill if taskkill fails
+                    this.currentProcess.kill('SIGKILL');
+                }
+            } else {
+                // On Unix-like systems, kill the process group if process was detached
+                if (this.currentProcess.pid && this.currentProcess.pid > 0) {
+                    try {
+                        process.kill(-this.currentProcess.pid, 'SIGKILL');
+                    } catch (error) {
+                        // Fall back to regular kill if process group kill fails
+                        this.currentProcess.kill('SIGKILL');
+                    }
+                }
+            }
             this.currentProcess = undefined;
         }
     }
@@ -286,7 +311,7 @@ export class PythonRuntime {
             }
             return undefined;
         } catch (error) {
-            console.error('Erreur lors de la récupération de la version Python:', error);
+            console.error('Error retrieving Python version:', error);
             return undefined;
         }
     }
@@ -302,7 +327,7 @@ export class PythonRuntime {
                 return configuredPath;
             }
         } catch (error) {
-            console.error('Erreur avec le chemin Python configuré:', error);
+            console.error('Error with configured Python path:', error);
         }
 
         const defaultPaths = process.platform === 'win32'
@@ -322,7 +347,7 @@ export class PythonRuntime {
             }
         }
 
-        vscode.window.showErrorMessage('Aucun interpréteur Python valide trouvé. Veuillez configurer le chemin Python dans les paramètres.');
+        vscode.window.showErrorMessage('No valid Python interpreter found. Please configure the Python path in settings.');
         return undefined;
     }
 }

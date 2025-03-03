@@ -28,8 +28,6 @@
   "icon": "media/icon.svg",
   "activationEvents": [
     "onCommand:devtoolkit.openPanel",
-    "onCommand:devtoolkit.runScript",
-    "onCommand:devtoolkit.addToChecklist",
     "onView:devtoolkit-scripts",
     "onView:devtoolkit-checklist"
   ],

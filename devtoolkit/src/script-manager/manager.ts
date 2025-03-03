@@ -13,7 +13,51 @@ import {
     ScriptManifest,
     ValidationResult,
     InstallResult,
+    ScriptInfo,
+    ScriptExecution,
 } from './types';
+
+/**
+ * Type guard to validate if an object is a ScriptManifest
+ */
+function isScriptManifest(obj: unknown): obj is ScriptManifest {
+    if (!obj || typeof obj !== 'object') {
+        return false;
+    }
+    
+    const candidate = obj as Partial<ScriptManifest>;
+    
+    // Check for script_info
+    if (!candidate.script_info || typeof candidate.script_info !== 'object') {
+        return false;
+    }
+    
+    // Check for required script_info properties
+    const scriptInfo = candidate.script_info as Partial<ScriptInfo>;
+    if (typeof scriptInfo.id !== 'string' || 
+        typeof scriptInfo.name !== 'string' || 
+        typeof scriptInfo.version !== 'string' || 
+        typeof scriptInfo.description !== 'string' || 
+        typeof scriptInfo.author !== 'string' ||
+        typeof scriptInfo.category !== 'string') {
+        return false;
+    }
+    
+    // Check for execution
+    if (!candidate.execution || typeof candidate.execution !== 'object') {
+        return false;
+    }
+    
+    // Check for required execution properties
+    const execution = candidate.execution as Partial<ScriptExecution>;
+    if (typeof execution.entry_point !== 'string' || 
+        typeof execution.python_version !== 'string' || 
+        !Array.isArray(execution.dependencies)) {
+        return false;
+    }
+    
+    return true;
+}
 
 export class ScriptManager {
     private _scriptsPath: string;
@@ -89,8 +133,11 @@ export class ScriptManager {
             }
             
             return scripts;
-        } catch (error) {
-            console.error('Erreur lors de la lecture des scripts:', error);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : String(error);
+            console.error('Error reading scripts:', errorMessage);
             return [];
         }
     }
@@ -117,28 +164,45 @@ export class ScriptManager {
                             try {
                                 const manifestPath = path.join(scriptPath, file);
                                 const content = await fs.promises.readFile(manifestPath, 'utf-8');
-                                const manifest = JSON.parse(content) as ScriptManifest;
+                                const parsed = JSON.parse(content);
+                                
+                                // Validate the parsed JSON is a valid manifest
+                                if (!isScriptManifest(parsed)) {
+                                    console.warn(`Invalid manifest format for ${file}`);
+                                    continue;
+                                }
+                                
+                                const manifest: ScriptManifest = parsed;
                                 
                                 // Valider le manifest avant de l'ajouter
                                 const validation = await this.validateScript(scriptPath, manifest);
                                 if (validation.isValid) {
                                     manifests.push(manifest);
                                 } else {
-                                    console.warn(`Manifest invalide pour ${file}:`, validation.errors);
+                                    console.warn(`Invalid manifest for ${file}:`, validation.errors);
                                 }
-                            } catch (error) {
-                                console.error(`Erreur lors de la lecture du manifest ${file}:`, error);
+                            } catch (error: unknown) {
+                                const errorMessage = error instanceof Error 
+                                    ? error.message 
+                                    : String(error);
+                                console.error(`Error reading manifest ${file}:`, errorMessage);
                             }
                         }
                     }
-                } catch (error) {
-                    console.error(`Erreur lors de la lecture du répertoire ${scriptPath}:`, error);
+                } catch (error: unknown) {
+                    const errorMessage = error instanceof Error 
+                        ? error.message 
+                        : String(error);
+                    console.error(`Error reading directory ${scriptPath}:`, errorMessage);
                 }
             }
             
             return manifests;
-        } catch (error) {
-            console.error('Erreur lors de la lecture des scripts:', error);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : String(error);
+            console.error('Error reading scripts:', errorMessage);
             return [];
         }
     }
@@ -147,13 +211,16 @@ export class ScriptManager {
         try {
             const manifest = await this.loadScriptManifest(scriptId);
             if (!manifest) {
-                throw new Error(`Manifest non trouvé pour le script ${scriptId}`);
+                throw new Error(`Manifest not found for script ${scriptId}`);
             }
 
             const scriptPath = path.join(this._scriptsPath, manifest.execution.entry_point);
             return await fs.promises.readFile(scriptPath, 'utf-8');
-        } catch (error) {
-            console.error(`Erreur lors de la lecture du script ${scriptId}:`, error);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : String(error);
+            console.error(`Error reading script ${scriptId}:`, errorMessage);
             return undefined;
         }
     }
@@ -181,11 +248,18 @@ export class ScriptManager {
             }
             
             if (!templateManifestPath) {
-                throw new Error('Template manifest non trouvé dans les emplacements configurés');
+                throw new Error('Template manifest not found in configured locations');
             }
-            const templateManifest = JSON.parse(
-                await fs.promises.readFile(templateManifestPath, 'utf-8')
-            ) as ScriptManifest;
+            
+            const content = await fs.promises.readFile(templateManifestPath, 'utf-8');
+            const parsed = JSON.parse(content);
+            
+            // Validate the parsed JSON is a valid manifest
+            if (!isScriptManifest(parsed)) {
+                throw new Error('Invalid template manifest format');
+            }
+            
+            const templateManifest: ScriptManifest = parsed;
 
             // Créer le nouveau manifest
             const newManifest: ScriptManifest = {
@@ -199,7 +273,7 @@ export class ScriptManager {
             // Valider le nouveau manifest
             const validation = await this.validateScript(this._scriptsPath, newManifest);
             if (!validation.isValid) {
-                throw new Error(`Manifest invalide: ${JSON.stringify(validation.errors)}`);
+                throw new Error(`Invalid manifest: ${JSON.stringify(validation.errors)}`);
             }
 
             // Créer les fichiers
@@ -221,8 +295,11 @@ export class ScriptManager {
             );
 
             return true;
-        } catch (error) {
-            console.error('Erreur lors de la création du script:', error);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : String(error);
+            console.error('Error creating script:', errorMessage);
             return false;
         }
     }
@@ -231,7 +308,7 @@ export class ScriptManager {
         try {
             const manifest = await this.loadScriptManifest(scriptId);
             if (!manifest) {
-                throw new Error(`Manifest non trouvé pour le script ${scriptId}`);
+                throw new Error(`Manifest not found for script ${scriptId}`);
             }
 
             // Supprimer les dépendances
@@ -245,8 +322,11 @@ export class ScriptManager {
             await fs.promises.unlink(manifestPath);
 
             return true;
-        } catch (error) {
-            console.error(`Erreur lors de la suppression du script ${scriptId}:`, error);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : String(error);
+            console.error(`Error deleting script ${scriptId}:`, errorMessage);
             return false;
         }
     }
@@ -255,9 +335,20 @@ export class ScriptManager {
         try {
             const manifestPath = path.join(this._scriptsPath, `${scriptId}_manifest.json`);
             const content = await fs.promises.readFile(manifestPath, 'utf-8');
-            return JSON.parse(content) as ScriptManifest;
-        } catch (error) {
-            console.error(`Erreur lors du chargement du manifest ${scriptId}:`, error);
+            const parsed = JSON.parse(content);
+            
+            // Validate the parsed JSON is a valid manifest
+            if (!isScriptManifest(parsed)) {
+                console.error(`Invalid manifest format for script ${scriptId}`);
+                return undefined;
+            }
+            
+            return parsed;
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : String(error);
+            console.error(`Error loading manifest ${scriptId}:`, errorMessage);
             return undefined;
         }
     }
@@ -325,7 +416,7 @@ export class ScriptManager {
                 isValid: false,
                 errors: [{
                     field: 'python',
-                    message: 'Impossible de déterminer la version Python'
+                    message: 'Unable to determine Python version'
                 }]
             };
         }
@@ -340,7 +431,7 @@ export class ScriptManager {
                 isValid: false,
                 errors: [{
                     field: 'python_version',
-                    message: `Version Python incompatible. Requis: ${manifest.execution.python_version}, Installé: ${pythonVersion}`
+                    message: `Incompatible Python version. Required: ${manifest.execution.python_version}, Installed: ${pythonVersion}`
                 }]
             };
         }
@@ -374,7 +465,7 @@ export class ScriptManager {
                     success: false,
                     installed: [],
                     errors: conflicts.conflicts.map(
-                        (c: { package: string; requiredVersion: string; conflictingVersion: string; conflictingScript: string }) => `Conflit de dépendance: ${c.package} (requis: ${c.requiredVersion}, installé: ${c.conflictingVersion} pour ${c.conflictingScript})`
+                        c => `Dependency conflict: ${c.package} (required: ${c.requiredVersion}, installed: ${c.conflictingVersion} for ${c.conflictingScript})`
                     )
                 };
             }
@@ -402,11 +493,15 @@ export class ScriptManager {
             );
 
             return installResult;
-        } catch (error) {
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : String(error);
+                
             return {
                 success: false,
                 installed: [],
-                errors: [`Erreur lors de la préparation de l'environnement: ${error}`]
+                errors: [`Error preparing environment: ${errorMessage}`]
             };
         }
     }

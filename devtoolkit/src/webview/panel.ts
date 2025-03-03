@@ -1,5 +1,20 @@
 import * as vscode from 'vscode';
 
+// Message validation schema interfaces
+interface MessageSchema {
+    requiredProps: string[];
+    propValidators: {
+        [prop: string]: (value: any) => boolean;
+    };
+    maxLength?: {
+        [prop: string]: number;
+    };
+}
+
+interface ValidationSchemas {
+    [type: string]: MessageSchema;
+}
+
 export class MainPanel {
     public static currentPanel: MainPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
@@ -18,11 +33,58 @@ export class MainPanel {
         // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
             message => {
-                switch (message.command) {
-                    case 'alert':
-                        vscode.window.showInformationMessage(message.text);
-                        return;
+                // Validate basic message structure
+                if (!message || typeof message !== 'object') {
+                    console.error('Invalid message format: message is not an object');
+                    return;
                 }
+
+                // Handle command-based messages
+                if (message.command) {
+                    if (typeof message.command !== 'string') {
+                        console.error('Invalid message format: command is not a string');
+                        return;
+                    }
+
+                    switch (message.command) {
+                        case 'alert':
+                            // Validate message.text
+                            if (!message.text || typeof message.text !== 'string' || message.text.length > 100) {
+                                console.error('Invalid alert message text');
+                                return;
+                            }
+                            vscode.window.showInformationMessage(message.text);
+                            return;
+                        default:
+                            console.error(`Unknown command received: ${message.command}`);
+                            return;
+                    }
+                }
+                
+                // Handle type-based messages
+                if (message.type) {
+                    if (typeof message.type !== 'string') {
+                        console.error('Invalid message format: type is not a string');
+                        return;
+                    }
+
+                    // Validate message by type
+                    if (!this.validateMessage(message, message.type)) {
+                        console.error(`Message validation failed for type: ${message.type}`);
+                        return;
+                    }
+                    
+                    switch (message.type) {
+                        case 'script':
+                            this.handleScriptMessage(message);
+                            return;
+                        default:
+                            console.error(`Unknown message type: ${message.type}`);
+                            return;
+                    }
+                }
+                
+                console.error('Invalid message: missing command or type property');
             },
             null,
             this._disposables
@@ -52,6 +114,71 @@ export class MainPanel {
         MainPanel.currentPanel = new MainPanel(panel, extensionUri);
     }
 
+    private readonly messageValidationSchema: ValidationSchemas = {
+        'script': {
+            requiredProps: ['action', 'scriptId'],
+            propValidators: {
+                'action': (val) => typeof val === 'string' && ['execute', 'cancel'].includes(val),
+                'scriptId': (val) => typeof val === 'string' && val.length > 0,
+                'files': (val) => !val || (Array.isArray(val) && val.every(f => typeof f === 'string'))
+            },
+            maxLength: {
+                'scriptId': 100
+            }
+        }
+    };
+
+    private validateMessage(message: any, type: string): boolean {
+        const schema = this.messageValidationSchema[type];
+        if (!schema) return false;
+        
+        // Check required properties
+        for (const prop of schema.requiredProps) {
+            if (message[prop] === undefined) {
+                console.error(`Required property missing: ${prop}`);
+                return false;
+            }
+        }
+        
+        // Validate property types and values
+        for (const [prop, validator] of Object.entries(schema.propValidators)) {
+            if (message[prop] !== undefined && !validator(message[prop])) {
+                console.error(`Property validation failed: ${prop}`);
+                return false;
+            }
+        }
+        
+        // Check max lengths
+        if (schema.maxLength) {
+            for (const [prop, maxLen] of Object.entries(schema.maxLength)) {
+                if (message[prop] && typeof message[prop] === 'string' && message[prop].length > maxLen) {
+                    console.error(`Property exceeds max length: ${prop}`);
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+
+    private handleScriptMessage(message: any): void {
+        // Handle validated script messages
+        const { action, scriptId, files } = message;
+        
+        // Process the action
+        switch (action) {
+            case 'execute':
+                // Handle script execution
+                // Implement secure handling of scriptId and files
+                console.log(`Executing script: ${scriptId}`);
+                break;
+            case 'cancel':
+                // Handle script cancellation
+                console.log(`Cancelling script: ${scriptId}`);
+                break;
+        }
+    }
+
     private _getWebviewContent(extensionUri: vscode.Uri) {
         // Obtenir les URIs pour les ressources
         const webviewUri = this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js'));
@@ -69,7 +196,14 @@ export class MainPanel {
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>DevToolkit</title>
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource}; script-src 'nonce-${nonce}';">
+                <meta http-equiv="Content-Security-Policy" content="
+                    default-src 'none';
+                    style-src ${this._panel.webview.cspSource};
+                    script-src 'nonce-${nonce}';
+                    img-src ${this._panel.webview.cspSource} https:;
+                    connect-src 'none';
+                    font-src ${this._panel.webview.cspSource};
+                ">
                 <link href="${codiconUri}" rel="stylesheet" nonce="${nonce}" />
                 <link href="${mainUri}" rel="stylesheet" nonce="${nonce}" />
                 <link href="${themesUri}" rel="stylesheet" nonce="${nonce}" />
@@ -97,11 +231,11 @@ export class MainPanel {
                             <div class="script-actions">
                                 <button id="run-script" class="primary-button" disabled>
                                     <span class="codicon codicon-play"></span>
-                                    Exécuter
+                                    Execute
                                 </button>
                                 <button id="cancel-script" class="secondary-button" disabled>
                                     <span class="codicon codicon-stop"></span>
-                                    Annuler
+                                    Cancel
                                 </button>
                             </div>
                         </div>
@@ -138,12 +272,12 @@ export class MainPanel {
                                 document.getElementById('run-script').disabled = true;
                                 document.getElementById('cancel-script').disabled = false;
                                 outputPanel.clear();
-                                outputPanel.log('Démarrage du script...');
+                                outputPanel.log('Starting script...');
                                 break;
                             case 'script-end':
                                 document.getElementById('run-script').disabled = false;
                                 document.getElementById('cancel-script').disabled = true;
-                                outputPanel.success('Script terminé');
+                                outputPanel.success('Script completed');
                                 break;
                             case 'script-error':
                                 document.getElementById('run-script').disabled = false;
