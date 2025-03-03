@@ -1,0 +1,59 @@
+{
+    "script_info": {
+        "id": "text-analyzer",
+        "name": "Text File Analyzer",
+        "version": "1.0.0",
+        "description": "Analyzes text files for word count, line count, and character statistics",
+        "author": "DevToolBox",
+        "category": "analysis",
+        "tags": ["text", "analysis", "statistics"]
+    },
+    "execution": {
+        "python_version": ">=3.8",
+        "dependencies": [],
+        "entry_point": "text_analyzer.py",
+        "environment_vars": []
+    },
+    "interface": {
+        "inputs": [
+            {
+                "name": "input_file",
+                "type": "file",
+                "description": "Text file to analyze",
+                "required": true,
+                "default": null
+            },
+            {
+                "name": "output_format",
+                "type": "string",
+                "description": "Output format (json or text)",
+                "required": false,
+                "default": "text"
+            },
+            {
+                "name": "verbose",
+                "type": "boolean",
+                "description": "Enable verbose logging",
+                "required": false,
+                "default": false
+            }
+        ],
+        "outputs": [
+            {
+                "name": "statistics",
+                "type": "console",
+                "description": "Text file statistics"
+            },
+            {
+                "name": "output_file",
+                "type": "file",
+                "description": "Optional output file for statistics"
+            }
+        ],
+        "file_list": {
+            "required": false,
+            "filter": [".txt", ".md", ".py", ".js", ".html"],
+            "description": "Text files to analyze"
+        }
+    }
+}

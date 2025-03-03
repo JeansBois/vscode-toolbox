@@ -1,0 +1,152 @@
+/* Reset et styles de base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-editor-background);
+    line-height: 1.4;
+}
+
+/* Layout principal avec CSS Grid */
+.container {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    grid-template-rows: 1fr;
+    height: 100vh;
+    gap: 1px;
+    background-color: var(--vscode-panel-border);
+}
+
+/* Sidebar */
+.sidebar {
+    background-color: var(--vscode-sideBar-background);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.scripts-section,
+.files-section {
+    padding: 1rem;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--vscode-sideBarTitle-foreground);
+    margin-bottom: 0.5rem;
+}
+
+/* Zone de contenu principal */
+.main-content {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    background-color: var(--vscode-editor-background);
+    overflow: hidden;
+}
+
+.script-config {
+    padding: 1rem;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.output-panel {
+    padding: 1rem;
+    overflow: auto;
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
+}
+
+/* États de chargement */
+.loading {
+    position: relative;
+    opacity: 0.7;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 24px;
+    height: 24px;
+    margin: -12px 0 0 -12px;
+    border: 2px solid var(--vscode-progressBar-background);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Composants communs */
+button {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    padding: 4px 12px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+input[type="text"],
+input[type="search"] {
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    padding: 4px 8px;
+    border-radius: 2px;
+    font-size: 13px;
+    width: 100%;
+}
+
+input[type="text"]:focus,
+input[type="search"]:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    border-color: transparent;
+}
+
+/* Animations */
+.fade-enter {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.fade-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.fade-exit {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.fade-exit-active {
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.3s, transform 0.3s;
+}

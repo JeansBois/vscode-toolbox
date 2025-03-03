@@ -1,0 +1,98 @@
+/* Variables de thème VSCode */
+:root {
+    /* Couleurs de base */
+    --app-background: var(--vscode-editor-background);
+    --app-foreground: var(--vscode-editor-foreground);
+    
+    /* Sidebar */
+    --sidebar-background: var(--vscode-sideBar-background);
+    --sidebar-foreground: var(--vscode-sideBar-foreground);
+    --sidebar-border: var(--vscode-sideBar-border);
+    
+    /* En-têtes */
+    --header-background: var(--vscode-titleBar-activeBackground);
+    --header-foreground: var(--vscode-titleBar-activeForeground);
+    
+    /* Liste des scripts */
+    --list-active-selection-background: var(--vscode-list-activeSelectionBackground);
+    --list-active-selection-foreground: var(--vscode-list-activeSelectionForeground);
+    --list-hover-background: var(--vscode-list-hoverBackground);
+    --list-focus-background: var(--vscode-list-focusBackground);
+    
+    /* Arbre de fichiers */
+    --tree-indent-guide: var(--vscode-tree-indentGuidesStroke);
+    --tree-selection-background: var(--vscode-list-activeSelectionBackground);
+    
+    /* Panneau de sortie */
+    --output-background: var(--vscode-terminal-background, var(--vscode-editor-background));
+    --output-foreground: var(--vscode-terminal-foreground, var(--vscode-editor-foreground));
+    
+    /* États et feedback */
+    --error-foreground: var(--vscode-errorForeground);
+    --warning-foreground: var(--vscode-editorWarning-foreground);
+    --success-foreground: var(--vscode-gitDecoration-addedResourceForeground);
+    
+    /* Contrôles */
+    --button-background: var(--vscode-button-background);
+    --button-foreground: var(--vscode-button-foreground);
+    --button-hover-background: var(--vscode-button-hoverBackground);
+    
+    --input-background: var(--vscode-input-background);
+    --input-foreground: var(--vscode-input-foreground);
+    --input-border: var(--vscode-input-border);
+    --input-placeholder: var(--vscode-input-placeholderForeground);
+    
+    /* Scrollbars */
+    --scrollbar-background: var(--vscode-scrollbarSlider-background);
+    --scrollbar-hover-background: var(--vscode-scrollbarSlider-hoverBackground);
+    --scrollbar-active-background: var(--vscode-scrollbarSlider-activeBackground);
+    
+    /* Bordures et séparateurs */
+    --border-color: var(--vscode-panel-border);
+    --separator-color: var(--vscode-panel-border);
+    
+    /* Focus */
+    --focus-border: var(--vscode-focusBorder);
+    
+    /* Badges et indicateurs */
+    --badge-background: var(--vscode-badge-background);
+    --badge-foreground: var(--vscode-badge-foreground);
+    
+    /* Progress Bar */
+    --progress-background: var(--vscode-progressBar-background);
+    
+    /* Transitions */
+    --transition-duration: 0.2s;
+    --transition-timing: ease-out;
+}
+
+/* Styles spécifiques au thème sombre */
+.vscode-dark {
+    --shadow-color: rgba(0, 0, 0, 0.4);
+    --overlay-background: rgba(0, 0, 0, 0.6);
+}
+
+/* Styles spécifiques au thème clair */
+.vscode-light {
+    --shadow-color: rgba(0, 0, 0, 0.2);
+    --overlay-background: rgba(255, 255, 255, 0.8);
+}
+
+/* Styles spécifiques au thème haute contraste */
+.vscode-high-contrast {
+    --shadow-color: var(--vscode-contrastBorder);
+    --overlay-background: var(--vscode-editor-background);
+}
+
+/* Classes d'utilité pour les thèmes */
+.theme-border {
+    border: 1px solid var(--border-color);
+}
+
+.theme-shadow {
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.theme-transition {
+    transition: all var(--transition-duration) var(--transition-timing);
+}

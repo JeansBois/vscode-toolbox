@@ -1,0 +1,269 @@
+{
+  "name": "devtoolkit",
+  "displayName": "DevToolkit",
+  "description": "Extension VSCode pour la gestion d'outils de développement",
+  "version": "0.1.0",
+  "publisher": "devtoolkit",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/devtoolkit"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Programming Languages",
+    "Snippets"
+  ],
+  "keywords": [
+    "python",
+    "scripts",
+    "tools",
+    "development",
+    "checklist"
+  ],
+  "icon": "media/icon.svg",
+  "activationEvents": [
+    "onCommand:devtoolkit.openPanel",
+    "onCommand:devtoolkit.runScript",
+    "onCommand:devtoolkit.addToChecklist",
+    "onView:devtoolkit-scripts",
+    "onView:devtoolkit-checklist"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "DevToolkit",
+      "properties": {
+        "devtoolkit.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Chemin vers l'exécutable Python"
+        },
+        "devtoolkit.scriptsDirectory": {
+          "type": "string",
+          "default": "${extensionPath}/scripts",
+          "description": "Répertoire principal des scripts"
+        },
+        "devtoolkit.globalStorage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Utiliser le stockage global pour les dépendances"
+        },
+        "devtoolkit.logging.level": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "default": "info",
+          "description": "Niveau de journalisation"
+        },
+        "devtoolkit.logging.file": {
+          "type": "boolean",
+          "default": true,
+          "description": "Activer la journalisation dans un fichier"
+        },
+        "devtoolkit.logging.console": {
+          "type": "boolean",
+          "default": true,
+          "description": "Activer la journalisation dans la console"
+        },
+        "devtoolkit.logging.directory": {
+          "type": "string",
+          "default": "${globalStoragePath}/logs",
+          "description": "Répertoire des fichiers de journalisation"
+        },
+        "devtoolkit.templates.directory": {
+          "type": "string",
+          "default": "${extensionPath}/templates",
+          "description": "Répertoire des modèles de scripts"
+        },
+        "devtoolkit.templates.defaultTemplate": {
+          "type": "string",
+          "default": "base.py",
+          "description": "Modèle de script par défaut"
+        },
+        "devtoolkit.templates.customTemplates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Liste des modèles personnalisés"
+        },
+        "devtoolkit.security.allowedPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "${extensionPath}",
+            "${workspaceFolder}"
+          ],
+          "description": "Chemins autorisés pour l'exécution des scripts"
+        },
+        "devtoolkit.security.blockedExtensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            ".exe",
+            ".dll",
+            ".so",
+            ".dylib",
+            ".bat",
+            ".cmd",
+            ".sh"
+          ],
+          "description": "Extensions de fichiers bloquées"
+        },
+        "devtoolkit.workspace.scriptDirectories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Répertoires de scripts spécifiques à l'espace de travail",
+          "scope": "resource"
+        },
+        "devtoolkit.workspace.templateLocations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Emplacements des modèles spécifiques à l'espace de travail",
+          "scope": "resource"
+        },
+        "devtoolkit.workspace.environmentVariables": {
+          "type": "object",
+          "default": {},
+          "description": "Variables d'environnement spécifiques à l'espace de travail",
+          "scope": "resource"
+        },
+        "devtoolkit.workspace.pythonEnvironment.useVirtualEnv": {
+          "type": "boolean",
+          "default": false,
+          "description": "Utiliser un environnement virtuel Python",
+          "scope": "resource"
+        },
+        "devtoolkit.workspace.pythonEnvironment.virtualEnvPath": {
+          "type": "string",
+          "default": "",
+          "description": "Chemin vers l'environnement virtuel",
+          "scope": "resource"
+        },
+        "devtoolkit.workspace.pythonEnvironment.requirementsPath": {
+          "type": "string",
+          "default": "",
+          "description": "Chemin vers le fichier requirements.txt",
+          "scope": "resource"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "devtoolkit.openPanel",
+        "title": "DevToolkit: Open Panel"
+      },
+      {
+        "command": "devtoolkit.runScript",
+        "title": "DevToolkit: Run Python Script"
+      },
+      {
+        "command": "devtoolkit.addToChecklist",
+        "title": "DevToolkit: Add to Checklist"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "devtoolkit-sidebar",
+          "title": "DevToolkit",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "devtoolkit-sidebar": [
+        {
+          "id": "devtoolkit-scripts",
+          "name": "Scripts",
+          "icon": "media/icon.svg",
+          "contextualTitle": "DevToolkit Scripts"
+        },
+        {
+          "id": "devtoolkit-checklist",
+          "name": "Checklist",
+          "icon": "media/icon.svg",
+          "contextualTitle": "DevToolkit Checklist"
+        }
+      ]
+    },
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "devtoolkit.runScript",
+          "when": "resourceExtname == .py",
+          "group": "DevToolkit"
+        },
+        {
+          "command": "devtoolkit.addToChecklist",
+          "group": "DevToolkit"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile && npm run build-webview",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "test:unit": "mocha --require ts-node/register 'src/test/suite/**/*.test.ts'",
+    "test:integration": "mocha --require ts-node/register 'src/test/integration/**/*.test.ts'",
+    "test:coverage": "nyc npm run test:unit && nyc npm run test:integration",
+    "test:python": "python -m pytest templates/test/",
+    "test:all": "npm run test:coverage && npm run test:python",
+    "build-webview": "webpack --mode production",
+    "watch-webview": "webpack --mode development --watch"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^16.x",
+    "@types/sinon": "^17.0.2",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "@vscode/codicons": "^0.0.36",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.56.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.2.0",
+    "nyc": "^15.1.0",
+    "sinon": "^17.0.1",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@types/semver": "^7.5.8",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "semver": "^7.7.1",
+    "simple-git": "^3.27.0"
+  }
+}

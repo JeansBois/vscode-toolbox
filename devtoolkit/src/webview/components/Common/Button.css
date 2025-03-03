@@ -1,0 +1,71 @@
+.vscode-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    border: none;
+    border-radius: 2px;
+    font-size: 13px;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: background-color var(--transition-duration) var(--transition-timing);
+    min-height: 28px;
+    position: relative;
+    white-space: nowrap;
+}
+
+.vscode-button--primary {
+    background-color: var(--button-background);
+    color: var(--button-foreground);
+}
+
+.vscode-button--primary:hover:not(:disabled) {
+    background-color: var(--button-hover-background);
+}
+
+.vscode-button--secondary {
+    background-color: transparent;
+    color: var(--button-foreground);
+    border: 1px solid var(--button-background);
+}
+
+.vscode-button--secondary:hover:not(:disabled) {
+    background-color: var(--button-background);
+    opacity: 0.3;
+}
+
+.vscode-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.vscode-button__spinner {
+    margin-right: 6px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.vscode-button__icon {
+    margin-right: 6px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.vscode-button__text {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.vscode-button--loading {
+    cursor: wait;
+}
+
+.codicon-modifier-spin {
+    animation: spin 1.4s linear infinite;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}

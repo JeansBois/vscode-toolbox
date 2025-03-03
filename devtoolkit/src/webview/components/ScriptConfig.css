@@ -1,0 +1,156 @@
+.script-config {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--app-background);
+    padding: 16px;
+}
+
+.script-config--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--input-foreground);
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+.script-config__header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--input-border);
+}
+
+.script-config__title {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--input-foreground);
+}
+
+.script-config__description {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--input-foreground);
+    opacity: 0.8;
+}
+
+.script-config__content {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.script-config__field {
+    margin-bottom: 16px;
+}
+
+.script-config__field-description {
+    margin: 4px 0 0 0;
+    font-size: 12px;
+    color: var(--input-foreground);
+    opacity: 0.7;
+    line-height: 1.4;
+}
+
+.script-config__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--input-border);
+}
+
+/* Animation pour les messages d'erreur */
+.script-config .vscode-input__message--error {
+    animation: errorShake 0.4s ease-in-out;
+}
+
+/* Animation pour les changements de valeur */
+.script-config .vscode-input,
+.script-config .vscode-select {
+    transition: border-color var(--transition-duration) var(--transition-timing),
+                box-shadow var(--transition-duration) var(--transition-timing);
+}
+
+/* États de focus et d'erreur */
+.script-config .vscode-input:focus,
+.script-config .vscode-select:focus-within {
+    border-color: var(--focus-border);
+    box-shadow: 0 0 0 1px var(--focus-border);
+}
+
+.script-config .vscode-input.error,
+.script-config .vscode-select.error {
+    border-color: var(--error-foreground);
+}
+
+/* Scrollbar styles */
+.script-config__content::-webkit-scrollbar {
+    width: 10px;
+}
+
+.script-config__content::-webkit-scrollbar-track {
+    background: var(--scrollbar-background);
+}
+
+.script-config__content::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-background);
+    border-radius: 5px;
+}
+
+.script-config__content::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-hover-background);
+}
+
+@keyframes errorShake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-4px);
+    }
+    75% {
+        transform: translateX(4px);
+    }
+}
+
+/* Styles pour les champs désactivés */
+.script-config .vscode-input:disabled,
+.script-config .vscode-select--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--input-background);
+}
+
+/* Styles pour les états de chargement */
+.script-config--loading .script-config__content {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Styles pour les tooltips de validation */
+.script-config .vscode-input__message,
+.script-config .vscode-select__message {
+    position: relative;
+    padding-left: 20px;
+}
+
+.script-config .vscode-input__message--error::before,
+.script-config .vscode-select__message--error::before {
+    content: '!';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--error-foreground);
+    color: var(--button-foreground);
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

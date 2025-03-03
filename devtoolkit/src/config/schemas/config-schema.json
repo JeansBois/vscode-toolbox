@@ -1,0 +1,130 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "pythonPath": {
+            "type": "string",
+            "description": "Chemin vers l'exécutable Python"
+        },
+        "scriptsDirectory": {
+            "type": "string",
+            "description": "Répertoire principal des scripts"
+        },
+        "globalStorage": {
+            "type": "boolean",
+            "description": "Utiliser le stockage global pour les dépendances",
+            "default": true
+        },
+        "logging": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "type": "string",
+                    "enum": ["debug", "info", "warn", "error"],
+                    "description": "Niveau de journalisation",
+                    "default": "info"
+                },
+                "file": {
+                    "type": "boolean",
+                    "description": "Activer la journalisation dans un fichier",
+                    "default": true
+                },
+                "console": {
+                    "type": "boolean",
+                    "description": "Activer la journalisation dans la console",
+                    "default": true
+                },
+                "directory": {
+                    "type": "string",
+                    "description": "Répertoire des fichiers de journalisation"
+                }
+            },
+            "required": ["level"]
+        },
+        "templates": {
+            "type": "object",
+            "properties": {
+                "directory": {
+                    "type": "string",
+                    "description": "Répertoire des modèles de scripts"
+                },
+                "defaultTemplate": {
+                    "type": "string",
+                    "description": "Modèle de script par défaut"
+                },
+                "customTemplates": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Liste des modèles personnalisés"
+                }
+            },
+            "required": ["directory", "defaultTemplate"]
+        },
+        "security": {
+            "type": "object",
+            "properties": {
+                "allowedPaths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Chemins autorisés pour l'exécution des scripts"
+                },
+                "blockedExtensions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Extensions de fichiers bloquées"
+                }
+            },
+            "required": ["allowedPaths", "blockedExtensions"]
+        },
+        "workspace": {
+            "type": "object",
+            "properties": {
+                "scriptDirectories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Répertoires de scripts spécifiques à l'espace de travail"
+                },
+                "templateLocations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Emplacements des modèles spécifiques à l'espace de travail"
+                },
+                "environmentVariables": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "Variables d'environnement spécifiques à l'espace de travail"
+                },
+                "pythonEnvironment": {
+                    "type": "object",
+                    "properties": {
+                        "useVirtualEnv": {
+                            "type": "boolean",
+                            "description": "Utiliser un environnement virtuel Python"
+                        },
+                        "virtualEnvPath": {
+                            "type": "string",
+                            "description": "Chemin vers l'environnement virtuel"
+                        },
+                        "requirementsPath": {
+                            "type": "string",
+                            "description": "Chemin vers le fichier requirements.txt"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "required": ["pythonPath", "scriptsDirectory"]
+}

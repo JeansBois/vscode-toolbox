@@ -1,0 +1,41 @@
+{
+    "pythonPath": "python",
+    "scriptsDirectory": "${extensionPath}/scripts",
+    "globalStorage": true,
+    "logging": {
+        "level": "info",
+        "file": true,
+        "console": true,
+        "directory": "${globalStoragePath}/logs"
+    },
+    "templates": {
+        "directory": "${extensionPath}/templates",
+        "defaultTemplate": "base.py",
+        "customTemplates": []
+    },
+    "security": {
+        "allowedPaths": [
+            "${extensionPath}",
+            "${workspaceFolder}"
+        ],
+        "blockedExtensions": [
+            ".exe",
+            ".dll",
+            ".so",
+            ".dylib",
+            ".bat",
+            ".cmd",
+            ".sh"
+        ]
+    },
+    "workspace": {
+        "scriptDirectories": [],
+        "templateLocations": [],
+        "environmentVariables": {},
+        "pythonEnvironment": {
+            "useVirtualEnv": false,
+            "virtualEnvPath": "",
+            "requirementsPath": ""
+        }
+    }
+}

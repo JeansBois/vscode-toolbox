@@ -1,0 +1,233 @@
+/* Liste des scripts */
+.scripts-list {
+    list-style: none;
+}
+
+.script-item {
+    padding: 8px 12px;
+    margin: 2px 0;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color var(--transition-duration) var(--transition-timing);
+}
+
+.script-item:hover {
+    background-color: var(--list-hover-background);
+}
+
+.script-item.selected {
+    background-color: var(--list-active-selection-background);
+    color: var(--list-active-selection-foreground);
+}
+
+.script-item-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.script-item-content {
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.script-item-title {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.script-item-description {
+    font-size: 12px;
+    color: var(--sidebar-foreground);
+    opacity: 0.8;
+}
+
+/* Arbre de fichiers */
+.file-tree {
+    padding-left: 0;
+}
+
+.file-tree-item {
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.file-tree-indent {
+    width: 16px;
+    height: 100%;
+    border-left: 1px solid var(--tree-indent-guide);
+    margin-right: 4px;
+}
+
+.file-tree-toggle {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.file-tree-toggle:hover {
+    opacity: 1;
+}
+
+.file-tree-checkbox {
+    margin-right: 8px;
+}
+
+.file-tree-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+}
+
+.file-tree-label {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Configuration du script */
+.script-config {
+    padding: 16px;
+}
+
+.config-section {
+    margin-bottom: 16px;
+}
+
+.config-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.config-field {
+    margin-bottom: 12px;
+}
+
+.config-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.config-description {
+    font-size: 12px;
+    color: var(--app-foreground);
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+/* Panneau de sortie */
+.output-panel {
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
+    background-color: var(--output-background);
+    color: var(--output-foreground);
+}
+
+.output-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.output-content {
+    padding: 8px;
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
+.output-line {
+    padding: 2px 0;
+}
+
+.output-error {
+    color: var(--error-foreground);
+}
+
+.output-warning {
+    color: var(--warning-foreground);
+}
+
+.output-success {
+    color: var(--success-foreground);
+}
+
+/* Progress Bar */
+.progress-bar {
+    height: 2px;
+    background-color: var(--progress-background);
+    position: relative;
+    overflow: hidden;
+    margin: 8px 0;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 30%;
+    background-color: var(--progress-background);
+    animation: progress 1s infinite linear;
+}
+
+@keyframes progress {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(400%);
+    }
+}
+
+/* Badges */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    background-color: var(--badge-background);
+    color: var(--badge-foreground);
+}
+
+/* Messages d'état */
+.status-message {
+    padding: 8px 12px;
+    margin: 8px 0;
+    border-radius: 3px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-message.error {
+    background-color: var(--error-foreground);
+    color: var(--app-background);
+}
+
+.status-message.warning {
+    background-color: var(--warning-foreground);
+    color: var(--app-background);
+}
+
+.status-message.success {
+    background-color: var(--success-foreground);
+    color: var(--app-background);
+}

@@ -1,0 +1,177 @@
+.output-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--app-background);
+    border: 1px solid var(--input-border);
+    border-radius: 2px;
+}
+
+.output-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: var(--input-background);
+    border-bottom: 1px solid var(--input-border);
+}
+
+.output-panel__title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--input-foreground);
+}
+
+.output-panel__clear-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 2px;
+    color: var(--input-foreground);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity var(--transition-duration) var(--transition-timing);
+}
+
+.output-panel__clear-button:hover {
+    opacity: 1;
+    background-color: var(--list-hover-background);
+}
+
+.output-panel__content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    font-family: var(--vscode-editor-font-family, 'Consolas, monospace');
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.output-panel__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--input-foreground);
+    opacity: 0.7;
+}
+
+.output-panel__log-entry {
+    display: flex;
+    align-items: flex-start;
+    padding: 2px 0;
+    animation: logEntryFadeIn 0.2s ease-out;
+}
+
+.output-panel__log-timestamp {
+    flex-shrink: 0;
+    margin-right: 8px;
+    color: var(--input-foreground);
+    opacity: 0.5;
+}
+
+.output-panel__log-icon {
+    flex-shrink: 0;
+    margin-right: 8px;
+    font-size: 14px;
+}
+
+.output-panel__log-message {
+    flex: 1;
+    overflow-x: auto;
+}
+
+/* Styles pour les différents niveaux de log */
+.output-panel__log-entry--info .output-panel__log-icon {
+    color: var(--input-foreground);
+}
+
+.output-panel__log-entry--success .output-panel__log-icon {
+    color: var(--success-foreground);
+}
+
+.output-panel__log-entry--warning .output-panel__log-icon {
+    color: var(--warning-foreground);
+}
+
+.output-panel__log-entry--error .output-panel__log-icon {
+    color: var(--error-foreground);
+}
+
+.output-panel__log-entry--error .output-panel__log-message {
+    color: var(--error-foreground);
+}
+
+/* Bouton de défilement */
+.output-panel__scroll-button {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background-color: var(--button-background);
+    color: var(--button-foreground);
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    transition: all var(--transition-duration) var(--transition-timing);
+    animation: scrollButtonFadeIn 0.2s ease-out;
+}
+
+.output-panel__scroll-button:hover {
+    background-color: var(--button-hover-background);
+    transform: translateY(-1px);
+}
+
+/* Scrollbar styles */
+.output-panel__content::-webkit-scrollbar {
+    width: 10px;
+}
+
+.output-panel__content::-webkit-scrollbar-track {
+    background: var(--scrollbar-background);
+}
+
+.output-panel__content::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-background);
+    border-radius: 5px;
+}
+
+.output-panel__content::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-hover-background);
+}
+
+/* Animations */
+@keyframes logEntryFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes scrollButtonFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

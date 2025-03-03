@@ -1,0 +1,114 @@
+.vscode-checkbox {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 8px;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+.vscode-checkbox__input-wrapper {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.vscode-checkbox__input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+}
+
+.vscode-checkbox__checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 16px;
+    height: 16px;
+    background-color: var(--input-background);
+    border: 1px solid var(--input-border);
+    border-radius: 2px;
+    transition: all var(--transition-duration) var(--transition-timing);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vscode-checkbox__input:checked + .vscode-checkbox__checkmark {
+    background-color: var(--button-background);
+    border-color: var(--button-background);
+}
+
+.vscode-checkbox__input:checked + .vscode-checkbox__checkmark .codicon {
+    color: var(--button-foreground);
+    font-size: 14px;
+    animation: checkmarkAppear 0.2s ease-out;
+}
+
+.vscode-checkbox--indeterminate .vscode-checkbox__checkmark {
+    background-color: var(--button-background);
+    border-color: var(--button-background);
+}
+
+.vscode-checkbox--indeterminate .codicon {
+    color: var(--button-foreground);
+    font-size: 14px;
+    animation: checkmarkAppear 0.2s ease-out;
+}
+
+.vscode-checkbox__input:focus-visible + .vscode-checkbox__checkmark {
+    outline: 2px solid var(--focus-border);
+    outline-offset: 2px;
+}
+
+.vscode-checkbox__input:hover:not(:disabled) + .vscode-checkbox__checkmark {
+    border-color: var(--button-hover-background);
+}
+
+.vscode-checkbox__label {
+    font-size: 13px;
+    line-height: 16px;
+    color: var(--input-foreground);
+}
+
+.vscode-checkbox__error {
+    font-size: 12px;
+    color: var(--error-foreground);
+    margin-top: 4px;
+}
+
+.vscode-checkbox--error .vscode-checkbox__checkmark {
+    border-color: var(--error-foreground);
+}
+
+.vscode-checkbox--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.vscode-checkbox--disabled .vscode-checkbox__input {
+    cursor: not-allowed;
+}
+
+.vscode-checkbox--disabled .vscode-checkbox__checkmark {
+    background-color: var(--input-background);
+    border-color: var(--input-border);
+}
+
+@keyframes checkmarkAppear {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}

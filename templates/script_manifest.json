@@ -1,0 +1,52 @@
+{
+    "script_info": {
+        "id": "script-id",
+        "name": "Script Name",
+        "version": "1.0.0",
+        "description": "Script description",
+        "author": "Author Name",
+        "category": "analysis",
+        "tags": ["example", "template"]
+    },
+    "execution": {
+        "python_version": ">=3.8",
+        "dependencies": [],
+        "entry_point": "script.py",
+        "environment_vars": []
+    },
+    "interface": {
+        "inputs": [
+            {
+                "name": "input_path",
+                "type": "file",
+                "description": "Input file to process",
+                "required": true,
+                "default": null
+            },
+            {
+                "name": "verbose",
+                "type": "boolean",
+                "description": "Enable verbose logging",
+                "required": false,
+                "default": false
+            }
+        ],
+        "outputs": [
+            {
+                "name": "output_file",
+                "type": "file",
+                "description": "Output file path"
+            },
+            {
+                "name": "summary",
+                "type": "console",
+                "description": "Execution summary"
+            }
+        ],
+        "file_list": {
+            "required": false,
+            "filter": [".py", ".txt"],
+            "description": "Files to process"
+        }
+    }
+}

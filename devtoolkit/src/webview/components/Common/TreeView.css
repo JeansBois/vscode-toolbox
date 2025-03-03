@@ -1,0 +1,126 @@
+.vscode-tree {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    user-select: none;
+}
+
+.vscode-tree-item {
+    position: relative;
+}
+
+.vscode-tree-item::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: var(--tree-indent-guide);
+    opacity: 0.4;
+}
+
+.vscode-tree-item--parent::before {
+    bottom: 0;
+}
+
+.vscode-tree-item__content {
+    display: flex;
+    align-items: center;
+    height: 22px;
+    padding-right: 8px;
+    cursor: pointer;
+    color: var(--input-foreground);
+    transition: background-color var(--transition-duration) var(--transition-timing);
+}
+
+.vscode-tree-item__content:hover {
+    background-color: var(--list-hover-background);
+}
+
+.vscode-tree-item__arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    cursor: pointer;
+    transition: transform var(--transition-duration) var(--transition-timing);
+    opacity: 0.7;
+}
+
+.vscode-tree-item--expanded > .vscode-tree-item__content .vscode-tree-item__arrow {
+    transform: rotate(90deg);
+}
+
+.vscode-tree-item__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    opacity: 0.7;
+}
+
+.vscode-tree-item__label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    line-height: 22px;
+}
+
+.vscode-tree-item__children {
+    position: relative;
+    overflow: hidden;
+    animation: treeExpand var(--transition-duration) var(--transition-timing);
+}
+
+.vscode-tree-item--dragging {
+    opacity: 0.5;
+}
+
+.vscode-tree-item--drag-over > .vscode-tree-item__content {
+    background-color: var(--list-hover-background);
+    box-shadow: inset 0 2px 0 var(--button-background);
+}
+
+.vscode-tree-item--drag-over-top > .vscode-tree-item__content {
+    box-shadow: inset 0 2px 0 var(--button-background);
+}
+
+.vscode-tree-item--drag-over-bottom > .vscode-tree-item__content {
+    box-shadow: inset 0 -2px 0 var(--button-background);
+}
+
+/* Scrollbar styles */
+.vscode-tree::-webkit-scrollbar {
+    width: 10px;
+}
+
+.vscode-tree::-webkit-scrollbar-track {
+    background: var(--scrollbar-background);
+}
+
+.vscode-tree::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-background);
+    border-radius: 5px;
+}
+
+.vscode-tree::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-hover-background);
+}
+
+@keyframes treeExpand {
+    from {
+        max-height: 0;
+        opacity: 0;
+    }
+    to {
+        max-height: 1000px;
+        opacity: 1;
+    }
+}
