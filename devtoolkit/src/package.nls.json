@@ -1,0 +1,9 @@
+{
+    "displayName": "DevToolkit",
+    "description": "Developer toolkit for VS Code with Python script management",
+    "command.openPanel.title": "Open DevToolkit Panel",
+    "command.runScript.title": "Run Script",
+    "viewsContainer.sidebar.title": "DevToolkit",
+    "view.scripts.name": "Scripts",
+    "view.checklist.name": "Checklist"
+  }

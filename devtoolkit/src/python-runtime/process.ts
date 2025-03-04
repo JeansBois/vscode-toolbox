@@ -8,7 +8,8 @@ import { PermissionManager } from '../script-manager/security/permissions';
 import { 
     PythonRuntimeError, 
     FileSystemError, 
-    TimeoutError
+    TimeoutError,
+    getOutputChannel
 } from '../utils/error-handling';
 
 /**
@@ -164,14 +165,19 @@ export class ScriptExecutor {
      * 
      * @param pythonPath - Optional path to the Python interpreter. If not provided,
      *                    uses the path from ConfigManager.
+     * @param context - Optional extension context for resource resolution
      */
-    constructor(pythonPath?: string) {
+    constructor(pythonPath?: string, context?: vscode.ExtensionContext) {
         this.pythonPath = pythonPath || ConfigManager.getInstance().getConfiguration().pythonPath;
         this.permissionManager = PermissionManager.getInstance();
         this.processPool = ProcessPool.getInstance();
         
-        // Path to the sandbox wrapper script
-        this.sandboxWrapperPath = path.join(__dirname, 'sandbox_wrapper.py');
+        // Use context.asAbsolutePath if available, otherwise fall back to __dirname
+        if (context) {
+            this.sandboxWrapperPath = context.asAbsolutePath('src/python-runtime/sandbox_wrapper.py');
+        } else {
+            this.sandboxWrapperPath = path.join(__dirname, 'sandbox_wrapper.py');
+        }
     }
 
     /**
@@ -795,7 +801,113 @@ class ProcessPool {
  * - Performance metrics collection
  */
 // Export ScriptExecutor as PythonRuntime for backward compatibility
-export { ScriptExecutor as PythonRuntime };
+export class PythonRuntime extends ScriptExecutor {
+    /**
+     * Finds a valid Python interpreter path
+     * 
+     * Implements a multi-step strategy to locate a suitable Python interpreter:
+     * 1. First checks user configuration
+     * 2. Attempts to get path from Python extension if installed
+     * 3. Tries common executable names in system PATH
+     * 
+     * @returns A promise resolving to the Python path or undefined if not found
+     */
+    public static async findPythonPath(): Promise<string | undefined> {
+        // First try the config
+        try {
+            const config = ConfigManager.getInstance().getConfiguration();
+            const configPath = config.pythonPath;
+            
+            if (configPath && configPath !== 'python') {
+                // Test if the configured path works
+                if (await PythonRuntime.testPythonPath(configPath)) {
+                    getOutputChannel().appendLine(`Using Python path from configuration: ${configPath}`);
+                    return configPath;
+                }
+                getOutputChannel().appendLine(`Configured Python path invalid: ${configPath}`);
+            }
+        } catch (error) {
+            getOutputChannel().appendLine(`Error accessing Python configuration: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        
+        // Then try the Python extension
+        try {
+            const pythonExtension = vscode.extensions.getExtension('ms-python.python');
+            if (pythonExtension) {
+                const pythonApi = await pythonExtension.activate();
+                if (pythonApi && pythonApi.exports.executionDetails) {
+                    const pythonPath = pythonApi.exports.executionDetails.execCommand[0];
+                    if (await PythonRuntime.testPythonPath(pythonPath)) {
+                        getOutputChannel().appendLine(`Using Python path from Python extension: ${pythonPath}`);
+                        return pythonPath;
+                    }
+                }
+            }
+        } catch (error) {
+            getOutputChannel().appendLine(`Error accessing Python extension API: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        
+        // Finally try common Python executable names
+        const pythonCommands = ['python3', 'python', 'py'];
+        for (const cmd of pythonCommands) {
+            try {
+                if (await PythonRuntime.testPythonPath(cmd)) {
+                    getOutputChannel().appendLine(`Found working Python in PATH: ${cmd}`);
+                    return cmd;
+                }
+            } catch (error) {
+                // Continue to next command on failure
+            }
+        }
+        
+        // No Python found
+        getOutputChannel().appendLine('Failed to find a valid Python interpreter');
+        return undefined;
+    }
+    
+    /**
+     * Tests if a Python path is valid and working
+     * 
+     * @param pythonPath Path to test
+     * @returns True if the path is a valid Python interpreter
+     */
+    private static async testPythonPath(pythonPath: string): Promise<boolean> {
+        try {
+            // Use a timeout to avoid hanging if the Python path is invalid
+            const testProcess = cp.spawn(pythonPath, ['--version'], {
+                timeout: 2000,
+                shell: process.platform === 'win32'
+            });
+            
+            return new Promise<boolean>((resolve) => {
+                let output = '';
+                
+                testProcess.stdout?.on('data', (data) => {
+                    output += data.toString();
+                });
+                
+                testProcess.stderr?.on('data', (data) => {
+                    output += data.toString();
+                });
+                
+                testProcess.on('error', () => {
+                    resolve(false);
+                });
+                
+                testProcess.on('close', (code) => {
+                    // Check if the output contains a valid Python version
+                    if (code === 0 && output.toLowerCase().includes('python')) {
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                });
+            });
+        } catch (error) {
+            return false;
+        }
+    }
+}
 
 export class PythonEnvironmentManager {
     private static instance: PythonEnvironmentManager;

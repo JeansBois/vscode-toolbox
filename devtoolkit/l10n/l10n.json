@@ -2,9 +2,9 @@
   "bundles": [
     {
       "name": "package",
-      "path": "bundle/package.nls.json",
+      "path": "../src/package.nls.json",
       "languageIds": {
-        "fr": "bundle/package.nls.fr.json"
+        "fr": "../src/package.nls.fr.json"
       }
     }
   ]

@@ -43,7 +43,7 @@
     "workspaceContains:**/*.py",
     "onLanguage:python"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "configuration": {
       "title": "%configuration.title%",
@@ -310,20 +310,20 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile && npm run build-webview",
-    "compile": "tsc -p ./",
-    "clean": "rimraf out",
-    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run clean && webpack --mode production",
+    "compile": "webpack --mode development",
+    "clean": "rimraf out dist",
+    "watch": "webpack --mode development --watch",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js",
+    "test": "node ./dist/test/runTest.js",
     "test:unit": "mocha --require ts-node/register 'src/test/suite/**/*.test.ts'",
     "test:integration": "mocha --require ts-node/register 'src/test/integration/**/*.test.ts'",
     "test:coverage": "nyc npm run test:unit && nyc npm run test:integration",
     "test:python": "python -m pytest templates/test/",
     "test:all": "npm run test:coverage && npm run test:python",
-    "build-webview": "webpack --mode production",
-    "watch-webview": "webpack --mode development --watch"
+    "build-dev": "webpack --mode development",
+    "build-prod": "webpack --mode production"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",

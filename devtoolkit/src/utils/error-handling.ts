@@ -1,5 +1,18 @@
 import * as vscode from 'vscode';
 
+// Dedicated output channel for centralized error logging
+let outputChannel: vscode.OutputChannel | undefined;
+
+/**
+ * Gets or creates the extension output channel for logging
+ */
+export function getOutputChannel(): vscode.OutputChannel {
+  if (!outputChannel) {
+    outputChannel = vscode.window.createOutputChannel('DevToolkit');
+  }
+  return outputChannel;
+}
+
 /**
  * Error codes for categorizing different error types
  */
@@ -213,13 +226,17 @@ export class SecurityError extends SystemError {
  */
 export function logError(error: unknown, context?: Record<string, any>): void {
   const formattedError = formatError(error, context);
+  const channel = getOutputChannel();
   
   if (formattedError instanceof AppError && formattedError.isUserError) {
     // User errors are typically less severe
     console.warn(`[USER ERROR] ${formattedError.toString()}`);
+    channel.appendLine(`[USER ERROR] ${formattedError.toString()}`);
   } else {
     // System errors are more severe
     console.error(`[SYSTEM ERROR] ${JSON.stringify(formattedError.toJSON(), null, 2)}`);
+    channel.appendLine(`[SYSTEM ERROR] ${JSON.stringify(formattedError.toJSON(), null, 2)}`);
+    channel.show(true); // Show the channel for system errors (second param true = preserve focus)
   }
 }
 
@@ -290,10 +307,13 @@ export function showErrorMessage(error: unknown): void {
     vscode.window.showErrorMessage(message, 'Show Details').then(selection => {
       if (selection === 'Show Details') {
         // Show more details in output channel for technical users
-        const outputChannel = vscode.window.createOutputChannel('DevToolkit Errors');
-        outputChannel.clear();
-        outputChannel.appendLine(JSON.stringify(formattedError.toJSON(), null, 2));
-        outputChannel.show();
+        const channel = getOutputChannel();
+        // Add a separator for better readability
+        channel.appendLine('\n-------------------------------------------');
+        channel.appendLine(`DETAILED ERROR: ${new Date().toLocaleString()}`);
+        channel.appendLine('-------------------------------------------');
+        channel.appendLine(JSON.stringify(formattedError.toJSON(), null, 2));
+        channel.show();
       }
     });
   }

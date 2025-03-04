@@ -442,6 +442,11 @@ export class MainPanel {
         const nonce = this._getNonce();
         const resourceUris = this._resourceUris || this._getResourceUris(extensionUri);
         
+        // Verify all required resources exist
+        if (!resourceUris.webviewJs || !resourceUris.stylesCss || !resourceUris.baseStylesCss) {
+            throw new Error('Required WebView resources not found. Check extension packaging.');
+        }
+        
         // Create optimized HTML content
         const htmlContent = `<!DOCTYPE html>
             <html lang="en">

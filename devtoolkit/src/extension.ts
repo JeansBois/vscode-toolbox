@@ -123,41 +123,46 @@ async function lazyImport(modulePath: string): Promise<any> {
  * Activates the DevToolkit extension with optimized loading
  * 
  * This function implements a staged activation pattern:
- * 1. Critical components (ConfigManager) are initialized immediately
- * 2. Non-critical components are lazy-loaded when needed
- * 3. Commands are registered with deferred execution
+ * 1. Critical components (ConfigManager, MainPanel) are initialized immediately in parallel
+ * 2. Commands are registered synchronously to avoid blocking activation
+ * 3. Non-critical components are lazy-loaded in the background
  * 4. View providers are created on-demand
  * 
- * This approach significantly improves startup time by deferring
- * expensive operations until they're actually needed.
+ * This approach significantly improves startup time by prioritizing critical components
+ * and deferring expensive operations until they're actually needed.
  * 
  * @param context - The extension context provided by VS Code
  * @returns A promise that resolves when activation is complete
- * @throws Error if activation fails catastrophically
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+    // Set activation start time for performance tracking
     performanceMetrics.activationStart = performance.now();
-    console.log('DevToolkit extension is activating');
-    PerformanceMonitor.getInstance();
-
+    
+    // Initialize the output channel early for proper logging
+    // We need to import the function directly here since importing at the top level
+    // could cause circular dependencies
+    const { getOutputChannel } = await import('./utils/error-handling');
+    const outputChannel = getOutputChannel();
+    outputChannel.appendLine(`DevToolkit extension activating (${new Date().toLocaleString()})`);
+    
     try {
-        // Initialize only the ConfigManager immediately - it's required for everything
-        await PerformanceMonitor.measure('init:ConfigManager', async () => {
-            ConfigManager.initialize(context);
-        });
-
-        // Setup deferred Python initialization to run in background
-        const pythonInitPromise = initializePythonRuntimeAsync(context);
-
-        // Register commands with deferred execution
-        await PerformanceMonitor.measure('registerCommands', async () => {
-            registerCommandsWithLazyLoading(context);
-        });
-
-        // Register tree view providers with deferred initialization
-        await registerTreeViewProvidersAsync(context);
+        // Preload critical components
+        await Promise.all([
+            PerformanceMonitor.measure('init:ConfigManager', async () => {
+                ConfigManager.initialize(context);
+            }),
+            PerformanceMonitor.measure('init:MainPanel', async () => {
+                const panelModule = await lazyImport('../src/webview/panel');
+                MainPanel = panelModule.MainPanel;
+            })
+        ]);
         
-        // Wait for Python initialization to complete in the background
+        // Register commands with preloaded components
+        registerCommandsWithLazyLoading(context);
+        
+        // Other initialization can remain lazy-loaded
+        const pythonInitPromise = initializePythonRuntimeAsync(context);
+        await registerTreeViewProvidersAsync(context);
         await pythonInitPromise;
         
         // Initialize message validation test
@@ -165,12 +170,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         
         // Record performance metrics
         PerformanceMonitor.recordStartupMetrics();
-        console.log('DevToolkit extension is now active');
-
-    } catch (error: any) {
-        console.error('Error initializing DevToolkit:', error);
-        vscode.window.showErrorMessage(`DevToolkit initialization error: ${error.message}`);
-        throw error;
+    } catch (error: unknown) {
+        // Log any errors during activation
+        console.error('Error during extension activation:', error);
+        const typedError = error instanceof Error ? error : new Error(String(error));
+        outputChannel.appendLine(`ERROR: Extension activation failed: ${typedError.message}`);
+        
+        // Show error to the user
+        vscode.window.showErrorMessage(`DevToolkit extension failed to activate: ${typedError.message}`);
     }
 }
 
@@ -194,13 +201,13 @@ async function initializePythonRuntimeAsync(_context: vscode.ExtensionContext): 
                 if (!pythonPath) {
                     throw new Error('Failed to find a valid Python interpreter');
                 }
-                pythonRuntime = new PythonRuntime(pythonPath);
+                pythonRuntime = new PythonRuntime(pythonPath, context);
             } catch (pythonError: unknown) {
                 const typedError = pythonError instanceof Error ? pythonError : new Error(String(pythonError));
                 console.error('Python initialization error:', typedError);
                 vscode.window.showErrorMessage(`Failed to initialize Python runtime: ${typedError.message}`);
-                // Create pythonRuntime with default path, which will show errors when used
-                pythonRuntime = new PythonRuntime();
+                // Create pythonRuntime with default path and context, which will show errors when used
+                pythonRuntime = new PythonRuntime(undefined, context);
             }
         } catch (error: unknown) {
             const typedError = error instanceof Error ? error : new Error(String(error));
@@ -319,7 +326,7 @@ function registerCommandsWithLazyLoading(context: vscode.ExtensionContext): void
             
             // Lazily load MainPanel component when needed
             if (!MainPanel) {
-                const panelModule = await lazyImport('./webview/panel');
+                const panelModule = await lazyImport('../src/webview/panel');
                 MainPanel = panelModule.MainPanel;
             }
             
