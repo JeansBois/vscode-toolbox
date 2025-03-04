@@ -1,152 +1,275 @@
-/* Reset et styles de base */
+/* Base styles and reset */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 body {
-    font-family: var(--vscode-font-family);
-    color: var(--vscode-foreground);
-    background-color: var(--vscode-editor-background);
-    line-height: 1.4;
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-editor-background);
+  line-height: 1.4;
+  font-size: var(--vscode-font-size, 13px);
 }
 
-/* Layout principal avec CSS Grid */
+/* Main layout container */
 .container {
-    display: grid;
-    grid-template-columns: 250px 1fr;
-    grid-template-rows: 1fr;
-    height: 100vh;
-    gap: 1px;
-    background-color: var(--vscode-panel-border);
+  display: grid;
+  grid-template-columns: minmax(250px, 1fr) 3fr;
+  grid-template-rows: 1fr;
+  height: 100vh;
+  gap: 1px;
+  background-color: var(--vscode-panel-border);
+}
+
+/* Responsive layout */
+@media (max-width: 768px) {
+  .container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
 }
 
 /* Sidebar */
 .sidebar {
-    background-color: var(--vscode-sideBar-background);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+  background-color: var(--vscode-sideBar-background);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .scripts-section,
 .files-section {
-    padding: 1rem;
-    border-bottom: 1px solid var(--vscode-panel-border);
+  padding: 1rem;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  flex-shrink: 0;
 }
 
 .section-title {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: var(--vscode-sideBarTitle-foreground);
-    margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--vscode-sideBarTitle-foreground);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.05em;
 }
 
-/* Zone de contenu principal */
+.scripts-list,
+.file-tree {
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+/* Main content area */
 .main-content {
-    display: grid;
-    grid-template-rows: auto 1fr;
-    background-color: var(--vscode-editor-background);
-    overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background-color: var(--vscode-editor-background);
+  overflow: hidden;
+  height: 100vh;
 }
 
 .script-config {
-    padding: 1rem;
-    border-bottom: 1px solid var(--vscode-panel-border);
+  padding: 1rem;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  overflow-y: auto;
 }
 
 .output-panel {
-    padding: 1rem;
-    overflow: auto;
-    font-family: var(--vscode-editor-font-family);
-    font-size: var(--vscode-editor-font-size);
+  padding: 1rem;
+  overflow: auto;
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  background-color: var(--vscode-terminal-background, var(--vscode-editor-background));
+  color: var(--vscode-terminal-foreground, var(--vscode-editor-foreground));
 }
 
-/* États de chargement */
+/* Loading states */
 .loading {
-    position: relative;
-    opacity: 0.7;
+  position: relative;
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .loading::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 24px;
-    height: 24px;
-    margin: -12px 0 0 -12px;
-    border: 2px solid var(--vscode-progressBar-background);
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border: 2px solid var(--vscode-progressBar-background);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-/* Composants communs */
-button {
-    background-color: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-    border: none;
-    padding: 4px 12px;
-    border-radius: 2px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: background-color 0.2s;
+/* Common elements */
+a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
 }
 
-button:hover {
-    background-color: var(--vscode-button-hoverBackground);
+a:hover {
+  text-decoration: underline;
+  color: var(--vscode-textLink-activeForeground);
 }
 
-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+h1, h2, h3, h4, h5, h6 {
+  color: var(--vscode-foreground);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
 }
 
-input[type="text"],
-input[type="search"] {
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border);
-    padding: 4px 8px;
-    border-radius: 2px;
-    font-size: 13px;
-    width: 100%;
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1.125rem; }
+h4 { font-size: 1rem; }
+h5 { font-size: 0.875rem; }
+h6 { font-size: 0.85rem; }
+
+p {
+  margin-bottom: 1rem;
 }
 
-input[type="text"]:focus,
-input[type="search"]:focus {
-    outline: 1px solid var(--vscode-focusBorder);
-    border-color: transparent;
+code {
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  padding: 0.125rem 0.25rem;
+  border-radius: 2px;
+  background-color: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+}
+
+pre {
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+  overflow: auto;
+  border-radius: 2px;
+  background-color: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
+}
+
+hr {
+  border: none;
+  height: 1px;
+  background-color: var(--vscode-panel-border);
+  margin: 1rem 0;
+}
+
+/* Common utilities */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 0.75rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-5 { margin-bottom: 1.5rem; }
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 0.75rem; }
+.mt-4 { margin-top: 1rem; }
+.mt-5 { margin-top: 1.5rem; }
+
+.ml-auto { margin-left: auto; }
+.mr-auto { margin-right: auto; }
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--vscode-scrollbarSlider-activeBackground);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Animations */
 .fade-enter {
-    opacity: 0;
-    transform: translateY(10px);
+  opacity: 0;
+  transform: translateY(10px);
 }
 
 .fade-enter-active {
-    opacity: 1;
-    transform: translateY(0);
-    transition: opacity 0.3s, transform 0.3s;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s, transform 0.3s;
 }
 
 .fade-exit {
-    opacity: 1;
-    transform: translateY(0);
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .fade-exit-active {
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: opacity 0.3s, transform 0.3s;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+/* Responsive utilities */
+.hide-on-mobile {
+  display: initial;
+}
+
+.show-on-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .hide-on-mobile {
+    display: none;
+  }
+  
+  .show-on-mobile {
+    display: initial;
+  }
 }

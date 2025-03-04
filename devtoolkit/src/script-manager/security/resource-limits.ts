@@ -70,13 +70,13 @@ export class ResourceLimitsManager extends EventEmitter {
 
         monitor.start(processId);
         
-        // Vérifier les limites toutes les secondes
+        // Check limits every second
         const interval = setInterval(() => {
             const usage = monitor.getUsage();
             this.checkLimits(scriptId, usage[usage.length - 1]);
         }, 1000);
 
-        // Nettoyer après l'arrêt du monitoring
+        // Clean up after monitoring stops
         monitor.on('stop', () => {
             clearInterval(interval);
             this.monitors.delete(scriptId);
@@ -124,27 +124,27 @@ export class ResourceLimitsManager extends EventEmitter {
         const errors: string[] = [];
 
         if (limits.maxMemory && limits.maxMemory > 1024) {
-            errors.push('Limite mémoire trop élevée (max 1024 MB)');
+            errors.push('Memory limit too high (max 1024 MB)');
         }
 
         if (limits.maxCpu && limits.maxCpu > 80) {
-            errors.push('Limite CPU trop élevée (max 80%)');
+            errors.push('CPU limit too high (max 80%)');
         }
 
         if (limits.maxDuration && limits.maxDuration > 3600) {
-            errors.push('Durée maximale trop élevée (max 1 heure)');
+            errors.push('Maximum duration too high (max 1 hour)');
         }
 
         if (limits.maxFileSize && limits.maxFileSize > 100 * 1024 * 1024) {
-            errors.push('Taille de fichier maximale trop élevée (max 100 MB)');
+            errors.push('Maximum file size too high (max 100 MB)');
         }
 
         if (limits.maxOpenFiles && limits.maxOpenFiles > 20) {
-            errors.push('Nombre maximum de fichiers ouverts trop élevé (max 20)');
+            errors.push('Maximum number of open files too high (max 20)');
         }
 
         if (limits.maxThreads && limits.maxThreads > 4) {
-            errors.push('Nombre maximum de threads trop élevé (max 4)');
+            errors.push('Maximum number of threads too high (max 4)');
         }
 
         return {
@@ -155,9 +155,9 @@ export class ResourceLimitsManager extends EventEmitter {
 
     private checkLimits(scriptId: string, usage: ResourceUsage): void {
         const limits = this.getScriptLimits(scriptId);
-        const violations = this.violations.get(scriptId) || [];
+        // Unused variable removed or prefixed with underscore
 
-        // Vérifier la mémoire
+        // Check memory
         if (usage.currentMemory > limits.maxMemory) {
             this.recordViolation(scriptId, {
                 scriptId,
@@ -168,7 +168,7 @@ export class ResourceLimitsManager extends EventEmitter {
             });
         }
 
-        // Vérifier le CPU
+        // Check CPU
         if (usage.currentCpu > limits.maxCpu) {
             this.recordViolation(scriptId, {
                 scriptId,
@@ -179,7 +179,7 @@ export class ResourceLimitsManager extends EventEmitter {
             });
         }
 
-        // Vérifier la durée
+        // Check duration
         const startTime = this.getScriptStartTime(scriptId);
         if (startTime) {
             const duration = (Date.now() - startTime) / 1000;

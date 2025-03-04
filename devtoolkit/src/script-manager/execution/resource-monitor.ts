@@ -118,7 +118,7 @@ export class ResourceMonitor extends EventEmitter {
                 this.measurements.shift();
             }
         } catch (error) {
-            console.error('Erreur lors de la mesure des ressources:', error);
+            console.error('Error measuring resources:', error);
         }
     }
 

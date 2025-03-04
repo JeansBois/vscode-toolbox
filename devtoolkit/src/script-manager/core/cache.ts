@@ -74,7 +74,7 @@ export class ScriptCache {
 
             return entry.lastModified === stats.mtimeMs && entry.hash === currentHash;
         } catch (error) {
-            console.error(`Erreur lors de la validation du cache pour ${scriptId}:`, error);
+            console.error(`Error validating cache for ${scriptId}:`, error);
             return false;
         }
     }
@@ -87,7 +87,7 @@ export class ScriptCache {
                 this.cache = new Map(Object.entries(parsed));
             }
         } catch (error) {
-            console.error('Erreur lors du chargement du cache:', error);
+            console.error('Error loading cache:', error);
             this.cache = new Map();
         }
     }
@@ -97,7 +97,7 @@ export class ScriptCache {
             const data = JSON.stringify(Object.fromEntries(this.cache), null, 2);
             await fs.promises.writeFile(this.cacheFile, data, 'utf-8');
         } catch (error) {
-            console.error('Erreur lors de la sauvegarde du cache:', error);
+            console.error('Error saving cache:', error);
         }
     }
 

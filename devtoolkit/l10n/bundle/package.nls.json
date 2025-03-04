@@ -1,0 +1,50 @@
+{
+  "displayName": "DevToolkit",
+  "description": "VS Code extension for development tools management and script automation",
+  
+  "configuration.title": "DevToolkit",
+  
+  "configuration.pythonPath.description": "Path to the Python executable. You can use specific Python version (e.g., 'python3.9') or full path (e.g., '/usr/bin/python3').",
+  "configuration.pythonPath.patternErrorMessage": "The Python path cannot contain whitespace.",
+  
+  "configuration.scriptsDirectory.description": "Main directory for scripts. Supports variables: ${extensionPath}, ${workspaceFolder}, ${globalStoragePath}, ${home}.",
+  "configuration.globalStorage.description": "Use global storage for dependencies. When enabled, dependencies are installed in a global location shared across workspaces.",
+  
+  "configuration.logging.level.description": "Log level to control the verbosity of extension logs.",
+  "configuration.logging.level.debug": "Show all messages including debug information",
+  "configuration.logging.level.info": "Show information, warnings and errors",
+  "configuration.logging.level.warn": "Show only warnings and errors",
+  "configuration.logging.level.error": "Show only error messages",
+  
+  "configuration.logging.file.description": "Enable logging to a file. Log files will be stored in the location specified by 'devtoolkit.logging.directory'.",
+  "configuration.logging.console.description": "Enable logging to the console. Logs will appear in the Output panel under 'DevToolkit'.",
+  "configuration.logging.directory.description": "Directory for log files. Supports variables: ${extensionPath}, ${workspaceFolder}, ${globalStoragePath}, ${home}.",
+  
+  "configuration.templates.directory.description": "Directory for script templates. Defines where the extension looks for script templates.",
+  "configuration.templates.defaultTemplate.description": "Default script template file name. This template will be used when creating new scripts without specifying a template.",
+  "configuration.templates.customTemplates.description": "List of custom templates. Include file names relative to the templates directory.",
+  
+  "configuration.security.allowedPaths.description": "Allowed paths for script execution. Scripts outside these paths cannot be executed for security reasons.",
+  "configuration.security.blockedExtensions.description": "Blocked file extensions. Files with these extensions will not be executed, even if they are in allowed paths.",
+  
+  "configuration.workspace.scriptDirectories.description": "Workspace-specific script directories. These directories are added to the script search path for the current workspace only.",
+  "configuration.workspace.templateLocations.description": "Workspace-specific template locations. These directories are added to the template search path for the current workspace only.",
+  "configuration.workspace.environmentVariables.description": "Workspace-specific environment variables. These variables will be available to scripts run in the current workspace.",
+  "configuration.workspace.pythonEnvironment.useVirtualEnv.description": "Use a Python virtual environment for the current workspace. When enabled, scripts will use the Python interpreter from the specified virtual environment.",
+  "configuration.workspace.pythonEnvironment.virtualEnvPath.description": "Path to the Python virtual environment for the current workspace. Use absolute path or path relative to the workspace folder.",
+  "configuration.workspace.pythonEnvironment.requirementsPath.description": "Path to the requirements.txt file for the current workspace. Used for automatic dependency installation in the virtual environment.",
+  
+  "command.openPanel.title": "Open Control Panel",
+  "command.runScript.title": "Run Python Script",
+  "command.addToChecklist.title": "Add to Checklist",
+  "command.testMessageValidation.title": "Test Message Validation",
+  "command.createNewScript.title": "Create New Script",
+  "command.refreshScriptsList.title": "Refresh Scripts List",
+  
+  "view.scripts.name": "Scripts",
+  "view.scripts.contextualTitle": "DevToolkit Scripts",
+  "view.checklist.name": "Checklist",
+  "view.checklist.contextualTitle": "DevToolkit Checklist",
+  
+  "viewsContainer.sidebar.title": "DevToolkit"
+}

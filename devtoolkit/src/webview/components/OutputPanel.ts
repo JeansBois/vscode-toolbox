@@ -166,7 +166,7 @@ export class OutputPanel {
             await navigator.clipboard.writeText(text);
             messageHandler.notifySuccess('Sortie copiée dans le presse-papiers');
         } catch (error) {
-            messageHandler.notifyError('Erreur lors de la copie dans le presse-papiers');
+            messageHandler.notifyError('Error copying to clipboard');
         }
     }
 

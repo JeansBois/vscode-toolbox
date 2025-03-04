@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebView Message Validation Integration Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+        }
+        .code-block {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-output {
+            height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        button {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        button:hover {
+            background-color: #106ebe;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebView Message Validation Integration Test</h1>
+    
+    <p>This page demonstrates how the messageSchema.ts validation system can be integrated into a real VSCode WebView.</p>
+
+    <div class="test-section">
+        <h2>1. Import and Setup</h2>
+        <p>In a real extension, you would import the validation utilities:</p>
+        <div class="code-block">
+            <pre>import { 
+    validateMessage, 
+    createMessage,
+    sanitizeMessage,
+    ScriptMessage
+} from './utils/messageSchema';</pre>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Creating Valid Messages</h2>
+        <p>Using the createMessage helper to ensure message validity:</p>
+        <div class="code-block">
+            <pre>// Create a valid script message
+const scriptMessage = createMessage('script', {
+    action: 'execute',
+    scriptId: 'test-script-123',
+    files: ['file1.js', 'file2.js']
+});
+
+// Send the validated message
+if (scriptMessage) {
+    vscode.postMessage(scriptMessage);
+}</pre>
+        </div>
+        <button id="run-create-demo">Run this example</button>
+        <div id="create-output" class="test-output"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Validating Incoming Messages</h2>
+        <p>Validating messages received from the extension:</p>
+        <div class="code-block">
+            <pre>window.addEventListener('message', event => {
+    const message = event.data;
+    
+    // Validate the message
+    const validationResult = validateMessage(message);
+    if (!validationResult.valid) {
+        console.error('Invalid message received from extension:');
+        validationResult.errors.forEach(err => console.error(`- ${err}`));
+        return; // Reject invalid messages
+    }
+
+    // Process validated message
+    switch (message.type) {
+        case 'update-scripts':
+            // Handle update-scripts message
+            break;
+        // other message types...
+    }
+});</pre>
+        </div>
+        <button id="run-validate-demo">Run this example</button>
+        <div id="validate-output" class="test-output"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Helper Methods for Sending Messages</h2>
+        <p>Using the messageHandler utility class for sending messages:</p>
+        <div class="code-block">
+            <pre>// Import the messageHandler singleton
+import { messageHandler } from './utils/messageHandler';
+
+// Send a script message with validation
+messageHandler.sendScriptMessage(
+    'execute',
+    'example-script',
+    { param1: 'value1' },
+    ['file1.js']
+);
+
+// Send a notification
+messageHandler.notifySuccess('Operation completed successfully');</pre>
+        </div>
+        <button id="run-helper-demo">Run this example</button>
+        <div id="helper-output" class="test-output"></div>
+    </div>
+
+    <script>
+        // Mock our validation system for demonstration
+        const validateMessage = function(message) {
+            const result = { valid: true, errors: [] };
+            
+            // Basic validation
+            if (!message || typeof message !== 'object') {
+                result.valid = false;
+                result.errors.push('Message must be an object');
+                return result;
+            }
+            
+            if (!message.type || typeof message.type !== 'string') {
+                result.valid = false;
+                result.errors.push('Message type is required and must be a string');
+                return result;
+            }
+            
+            // Type-specific validation
+            if (message.type === 'script') {
+                if (!message.action) {
+                    result.valid = false;
+                    result.errors.push('Action is required for script messages');
+                }
+                if (!message.scriptId) {
+                    result.valid = false;
+                    result.errors.push('scriptId is required for script messages');
+                }
+            }
+            
+            return result;
+        };
+        
+        const createMessage = function(type, data) {
+            const message = { type, ...data };
+            const result = validateMessage(message);
+            
+            if (!result.valid) {
+                console.error('Failed to create message:', result.errors);
+                return null;
+            }
+            
+            return message;
+        };
+        
+        const sanitizeMessage = function(message, type) {
+            // Simple implementation for demo
+            return { ...message };
+        };
+        
+        // Mock VSCode API
+        const vscode = {
+            postMessage: function(message) {
+                console.log('Message sent to extension:', message);
+                return message;
+            }
+        };
+        
+        // Mock MessageHandler class
+        class MessageHandler {
+            sendScriptMessage(action, scriptId, config, files) {
+                const message = createMessage('script', {
+                    action,
+                    scriptId,
+                    config,
+                    files
+                });
+                
+                if (message) {
+                    return vscode.postMessage(message);
+                }
+                return null;
+            }
+            
+            notifySuccess(message) {
+                const successMessage = createMessage('success', { message });
+                if (successMessage) {
+                    return vscode.postMessage(successMessage);
+                }
+                return null;
+            }
+        }
+        
+        const messageHandler = new MessageHandler();
+        
+        // Utility to log to the page
+        function logToOutput(elementId, message, isError = false) {
+            const output = document.getElementById(elementId);
+            const line = document.createElement('div');
+            line.textContent = `> ${message}`;
+            if (isError) {
+                line.classList.add('error');
+            } else {
+                line.classList.add('success');
+            }
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        // Demo 1: Create Message
+        document.getElementById('run-create-demo').addEventListener('click', function() {
+            const outputId = 'create-output';
+            document.getElementById(outputId).innerHTML = '';
+            
+            logToOutput(outputId, 'Creating valid script message...');
+            
+            try {
+                // Create a valid message
+                const validMessage = createMessage('script', {
+                    action: 'execute',
+                    scriptId: 'test-script-123',
+                    files: ['file1.js', 'file2.js']
+                });
+                
+                if (validMessage) {
+                    logToOutput(outputId, `Message created successfully: ${JSON.stringify(validMessage)}`);
+                    logToOutput(outputId, 'Sending message to extension...');
+                    vscode.postMessage(validMessage);
+                    logToOutput(outputId, 'Message sent!');
+                }
+                
+                // Try creating an invalid message
+                logToOutput(outputId, '\nTrying to create invalid message (missing scriptId)...');
+                const invalidMessage = createMessage('script', {
+                    action: 'execute'
+                    // Missing scriptId
+                });
+                
+                if (invalidMessage) {
+                    logToOutput(outputId, 'Message created and sent (this should not happen)', true);
+                } else {
+                    logToOutput(outputId, 'Message creation failed as expected - validation prevented invalid message');
+                }
+            } catch (error) {
+                logToOutput(outputId, `Error: ${error.message}`, true);
+            }
+        });
+        
+        // Demo 2: Validate Incoming Message
+        document.getElementById('run-validate-demo').addEventListener('click', function() {
+            const outputId = 'validate-output';
+            document.getElementById(outputId).innerHTML = '';
+            
+            logToOutput(outputId, 'Testing validation of incoming messages...');
+            
+            // Valid message simulation
+            const validMessage = {
+                type: 'update-scripts',
+                scripts: [
+                    { id: 'script1', name: 'Test Script 1' },
+                    { id: 'script2', name: 'Test Script 2' }
+                ]
+            };
+            
+            logToOutput(outputId, `\nReceived message: ${JSON.stringify(validMessage)}`);
+            logToOutput(outputId, 'Validating message...');
+            
+            const validResult = validateMessage(validMessage);
+            if (validResult.valid) {
+                logToOutput(outputId, 'Message is valid!');
+                logToOutput(outputId, 'Processing message type: ' + validMessage.type);
+                logToOutput(outputId, `Found ${validMessage.scripts.length} scripts`);
+            } else {
+                logToOutput(outputId, 'Validation failed: ' + validResult.errors.join(', '), true);
+            }
+            
+            // Invalid message simulation
+            const invalidMessage = {
+                // Missing type
+                data: 'some data'
+            };
+            
+            logToOutput(outputId, `\nReceived another message: ${JSON.stringify(invalidMessage)}`);
+            logToOutput(outputId, 'Validating message...');
+            
+            const invalidResult = validateMessage(invalidMessage);
+            if (!invalidResult.valid) {
+                logToOutput(outputId, 'Validation failed as expected: ' + invalidResult.errors.join(', '));
+                logToOutput(outputId, 'Message rejected - will not process');
+            } else {
+                logToOutput(outputId, 'Message incorrectly validated as valid', true);
+            }
+        });
+        
+        // Demo 3: Helper Methods
+        document.getElementById('run-helper-demo').addEventListener('click', function() {
+            const outputId = 'helper-output';
+            document.getElementById(outputId).innerHTML = '';
+            
+            logToOutput(outputId, 'Using MessageHandler helper methods...');
+            
+            // Override postMessage for demonstration
+            const originalPostMessage = vscode.postMessage;
+            vscode.postMessage = function(message) {
+                logToOutput(outputId, `Sending validated message: ${JSON.stringify(message)}`);
+                return message;
+            };
+            
+            try {
+                // Send script message
+                logToOutput(outputId, '\nSending script message with helper:');
+                messageHandler.sendScriptMessage(
+                    'execute',
+                    'example-script',
+                    { param1: 'value1' },
+                    ['file1.js']
+                );
+                
+                // Send notification
+                logToOutput(outputId, '\nSending success notification with helper:');
+                messageHandler.notifySuccess('Operation completed successfully');
+                
+                // Try with invalid parameters (this is not handled in our mock implementation)
+                logToOutput(outputId, '\nTrying with missing scriptId (in a real implementation this would fail):');
+                try {
+                    messageHandler.sendScriptMessage(
+                        'execute',
+                        '', // Empty scriptId
+                        { param1: 'value1' }
+                    );
+                    logToOutput(outputId, 'Note: Our simplified mock doesn\'t validate as thoroughly as the real implementation');
+                } catch (err) {
+                    logToOutput(outputId, `Error caught: ${err.message}`);
+                }
+            } finally {
+                // Restore original function
+                vscode.postMessage = originalPostMessage;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,71 +1,159 @@
+/* Button Base Styles */
 .vscode-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px 12px;
-    border: none;
-    border-radius: 2px;
-    font-size: 13px;
-    line-height: 1.4;
-    cursor: pointer;
-    transition: background-color var(--transition-duration) var(--transition-timing);
-    min-height: 28px;
-    position: relative;
-    white-space: nowrap;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  font-family: var(--vscode-font-family);
+  user-select: none;
+  transition: all 0.2s ease-in-out;
+  gap: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: var(--vscode-button-border-radius, 2px);
 }
 
+.vscode-button:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+.vscode-button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.vscode-button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Button Sizes */
+.vscode-button--small {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  min-height: 1.5rem;
+}
+
+.vscode-button--medium {
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.75rem;
+  min-height: 1.75rem;
+}
+
+.vscode-button--large {
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  min-height: 2rem;
+}
+
+/* Button Variants */
 .vscode-button--primary {
-    background-color: var(--button-background);
-    color: var(--button-foreground);
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
 }
 
-.vscode-button--primary:hover:not(:disabled) {
-    background-color: var(--button-hover-background);
+.vscode-button--primary:hover:not([disabled]) {
+  background-color: var(--vscode-button-hoverBackground);
 }
 
 .vscode-button--secondary {
-    background-color: transparent;
-    color: var(--button-foreground);
-    border: 1px solid var(--button-background);
+  background-color: var(--vscode-button-secondaryBackground, transparent);
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-button-border, var(--vscode-panel-border));
 }
 
-.vscode-button--secondary:hover:not(:disabled) {
-    background-color: var(--button-background);
-    opacity: 0.3;
+.vscode-button--secondary:hover:not([disabled]) {
+  background-color: var(--vscode-button-secondaryHoverBackground, rgba(128, 128, 128, 0.1));
 }
 
-.vscode-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+.vscode-button--ghost {
+  background-color: transparent;
+  color: var(--vscode-foreground);
+}
+
+.vscode-button--ghost:hover:not([disabled]) {
+  background-color: rgba(128, 128, 128, 0.1);
+}
+
+.vscode-button--danger {
+  background-color: var(--vscode-errorForeground);
+  color: white;
+}
+
+.vscode-button--danger:hover:not([disabled]) {
+  background-color: var(--vscode-errorForeground);
+  opacity: 0.9;
+}
+
+.vscode-button--link {
+  background-color: transparent;
+  color: var(--vscode-textLink-foreground);
+  padding: 0;
+  text-decoration: none;
+  border-radius: 0;
+  min-height: auto;
+}
+
+.vscode-button--link:hover:not([disabled]) {
+  text-decoration: underline;
+  background-color: transparent;
+}
+
+/* Full Width */
+.vscode-button--full-width {
+  width: 100%;
+}
+
+/* Loading State */
+.vscode-button--loading {
+  color: transparent !important;
 }
 
 .vscode-button__spinner {
-    margin-right: 6px;
-    display: inline-flex;
-    align-items: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* Icons */
 .vscode-button__icon {
-    margin-right: 6px;
-    display: inline-flex;
-    align-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1em;
+  line-height: 1;
 }
 
-.vscode-button__text {
-    display: inline-block;
-    vertical-align: middle;
+.vscode-button__icon--start {
+  margin-right: 0.25rem;
+  margin-left: -0.125rem;
 }
 
-.vscode-button--loading {
-    cursor: wait;
+.vscode-button__icon--end {
+  margin-left: 0.25rem;
+  margin-right: -0.125rem;
 }
 
-.codicon-modifier-spin {
-    animation: spin 1.4s linear infinite;
+/* High Contrast Theme Support */
+.vscode-high-contrast .vscode-button {
+  outline: 1px solid currentColor;
 }
 
-@keyframes spin {
-    100% {
-        transform: rotate(360deg);
-    }
+.vscode-high-contrast .vscode-button:focus {
+  outline: 1px solid var(--vscode-contrastActiveBorder);
+  outline-offset: 2px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .vscode-button--responsive {
+    width: 100%;
+  }
 }

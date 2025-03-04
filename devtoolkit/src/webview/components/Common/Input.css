@@ -1,98 +1,192 @@
+/* Input wrapper */
 .vscode-input-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+  width: max-content;
 }
 
+.vscode-input-wrapper--full-width {
+  width: 100%;
+}
+
+/* Input label */
 .vscode-input__label {
-    font-size: 13px;
-    color: var(--input-foreground);
-    font-weight: 500;
+  display: block;
+  color: var(--vscode-foreground);
+  font-size: 0.8125rem;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
 }
 
+.vscode-input__required {
+  color: var(--vscode-errorForeground);
+  margin-left: 0.125rem;
+}
+
+/* Input container */
 .vscode-input__container {
-    position: relative;
-    display: flex;
-    align-items: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
+/* Base input */
 .vscode-input {
-    width: 100%;
-    height: 28px;
-    padding: 4px 8px;
-    background-color: var(--input-background);
-    color: var(--input-foreground);
-    border: 1px solid var(--input-border);
-    border-radius: 2px;
-    font-size: 13px;
-    line-height: 1.4;
-    outline: none;
-    transition: border-color var(--transition-duration) var(--transition-timing);
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: var(--vscode-input-border-radius, 2px);
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+  font-family: var(--vscode-font-family);
+  width: 100%;
+  height: 1.75rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .vscode-input:focus {
-    border-color: var(--focus-border);
+  border-color: var(--vscode-focusBorder);
+  outline: none;
+}
+
+.vscode-input:hover:not(:disabled) {
+  background-color: var(--vscode-input-background);
+  border-color: var(--vscode-inputOption-hoverBorder, var(--vscode-input-border));
+}
+
+.vscode-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .vscode-input::placeholder {
-    color: var(--input-placeholder);
+  color: var(--vscode-input-placeholderForeground);
+  opacity: 0.7;
 }
 
+/* Input with icons */
 .vscode-input--with-start-icon {
-    padding-left: 32px;
+  padding-left: 2rem;
 }
 
 .vscode-input--with-end-icon {
-    padding-right: 32px;
+  padding-right: 2rem;
 }
 
+.vscode-input--with-adornment {
+  padding-right: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Input icons */
 .vscode-input__icon {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    color: var(--input-foreground);
-    opacity: 0.7;
+  position: absolute;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 2rem;
+  pointer-events: none;
+  color: var(--vscode-input-foreground);
+  opacity: 0.7;
 }
 
 .vscode-input__icon--start {
-    left: 4px;
+  left: 0;
 }
 
 .vscode-input__icon--end {
-    right: 4px;
+  right: 0;
 }
 
+/* Input clear button */
+.vscode-input__clear-button {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--vscode-input-foreground);
+  opacity: 0.7;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0;
+}
+
+.vscode-input__clear-button:hover {
+  opacity: 1;
+}
+
+/* Input adornment */
+.vscode-input__adornment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  background-color: var(--vscode-badge-background, rgba(128, 128, 128, 0.2));
+  color: var(--vscode-badge-foreground, var(--vscode-input-foreground));
+  padding: 0 0.5rem;
+  border-top-right-radius: var(--vscode-input-border-radius, 2px);
+  border-bottom-right-radius: var(--vscode-input-border-radius, 2px);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+/* Input message (hint/error) */
 .vscode-input__message {
-    font-size: 12px;
-    color: var(--input-foreground);
-    opacity: 0.7;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  color: var(--vscode-descriptionForeground);
 }
 
 .vscode-input__message--error {
-    color: var(--error-foreground);
-    opacity: 1;
+  color: var(--vscode-errorForeground);
 }
 
+/* Error state */
 .vscode-input-wrapper--error .vscode-input {
-    border-color: var(--error-foreground);
+  border-color: var(--vscode-inputValidation-errorBorder);
 }
 
-.vscode-input-wrapper--disabled {
-    opacity: 0.5;
+.vscode-input-wrapper--error .vscode-input:focus {
+  box-shadow: 0 0 0 1px var(--vscode-inputValidation-errorBorder);
 }
 
-.vscode-input-wrapper--disabled .vscode-input {
-    cursor: not-allowed;
-    background-color: var(--input-background);
-    border-color: var(--input-border);
+/* Focus state */
+.vscode-input-wrapper--focused .vscode-input__label {
+  color: var(--vscode-focusBorder);
 }
 
-.vscode-input-wrapper--disabled .vscode-input__icon {
-    opacity: 0.5;
+/* Disabled state */
+.vscode-input-wrapper--disabled .vscode-input__label,
+.vscode-input-wrapper--disabled .vscode-input__message {
+  opacity: 0.5;
+}
+
+/* High contrast theme */
+.vscode-high-contrast .vscode-input {
+  border: 1px solid var(--vscode-contrastBorder);
+}
+
+.vscode-high-contrast .vscode-input:focus {
+  outline: 2px solid var(--vscode-contrastActiveBorder);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .vscode-input-wrapper {
+    width: 100%;
+  }
 }

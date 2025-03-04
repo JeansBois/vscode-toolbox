@@ -1,0 +1,144 @@
+/* Form container */
+.vscode-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Form fields container */
+.vscode-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+/* Form actions container (buttons, etc.) */
+.vscode-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Align form actions to the right by default */
+.vscode-form__actions {
+  justify-content: flex-end;
+}
+
+/* For left-aligned actions */
+.vscode-form__actions--left {
+  justify-content: flex-start;
+}
+
+/* For centered actions */
+.vscode-form__actions--center {
+  justify-content: center;
+}
+
+/* For space-between actions */
+.vscode-form__actions--spread {
+  justify-content: space-between;
+}
+
+/* For full-width actions */
+.vscode-form__actions--full-width .vscode-button {
+  flex: 1;
+}
+
+/* Form section with divider */
+.vscode-form__section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  margin-bottom: 1.5rem;
+}
+
+.vscode-form__section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Form title */
+.vscode-form__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: var(--vscode-foreground);
+}
+
+/* Form description */
+.vscode-form__description {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  margin: -0.5rem 0 1rem;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* Form row for horizontal layouts */
+.vscode-form__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  width: 100%;
+}
+
+.vscode-form__col {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Form validation message */
+.vscode-form__error {
+  font-size: 0.8125rem;
+  color: var(--vscode-errorForeground);
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--vscode-inputValidation-errorBackground);
+  border: 1px solid var(--vscode-inputValidation-errorBorder);
+  border-radius: var(--vscode-input-border-radius, 2px);
+}
+
+/* Form success message */
+.vscode-form__success {
+  font-size: 0.8125rem;
+  color: var(--vscode-gitDecoration-addedResourceForeground);
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--vscode-terminal-ansiGreen, rgba(0, 128, 0, 0.1));
+  border: 1px solid var(--vscode-gitDecoration-addedResourceForeground);
+  border-radius: var(--vscode-input-border-radius, 2px);
+}
+
+/* Form inline actions */
+.vscode-form__inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.5rem;
+}
+
+/* Responsive behavior */
+@media (max-width: 600px) {
+  .vscode-form__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .vscode-form__actions .vscode-button {
+    width: 100%;
+  }
+  
+  .vscode-form__row {
+    flex-direction: column;
+  }
+  
+  .vscode-form__col {
+    width: 100%;
+  }
+}

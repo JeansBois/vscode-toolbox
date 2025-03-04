@@ -1,0 +1,50 @@
+{
+  "displayName": "DevToolkit",
+  "description": "Extension VSCode pour la gestion d'outils de développement",
+  
+  "configuration.title": "DevToolkit",
+  
+  "configuration.pythonPath.description": "Chemin vers l'exécutable Python. Vous pouvez utiliser une version spécifique de Python (ex: 'python3.9') ou un chemin complet (ex: '/usr/bin/python3').",
+  "configuration.pythonPath.patternErrorMessage": "Le chemin Python ne peut pas contenir d'espaces.",
+  
+  "configuration.scriptsDirectory.description": "Répertoire principal des scripts. Prend en charge les variables : ${extensionPath}, ${workspaceFolder}, ${globalStoragePath}, ${home}.",
+  "configuration.globalStorage.description": "Utiliser le stockage global pour les dépendances. Lorsque cette option est activée, les dépendances sont installées dans un emplacement global partagé entre les espaces de travail.",
+  
+  "configuration.logging.level.description": "Niveau de journalisation pour contrôler la verbosité des logs d'extension.",
+  "configuration.logging.level.debug": "Afficher tous les messages, y compris les informations de débogage",
+  "configuration.logging.level.info": "Afficher les informations, les avertissements et les erreurs",
+  "configuration.logging.level.warn": "Afficher uniquement les avertissements et les erreurs",
+  "configuration.logging.level.error": "Afficher uniquement les messages d'erreur",
+  
+  "configuration.logging.file.description": "Activer la journalisation dans un fichier. Les fichiers journaux seront stockés à l'emplacement spécifié par 'devtoolkit.logging.directory'.",
+  "configuration.logging.console.description": "Activer la journalisation dans la console. Les journaux apparaîtront dans le panneau de sortie sous 'DevToolkit'.",
+  "configuration.logging.directory.description": "Répertoire des fichiers de journalisation. Prend en charge les variables : ${extensionPath}, ${workspaceFolder}, ${globalStoragePath}, ${home}.",
+  
+  "configuration.templates.directory.description": "Répertoire des modèles de scripts. Définit où l'extension recherche les modèles de scripts.",
+  "configuration.templates.defaultTemplate.description": "Nom du fichier modèle de script par défaut. Ce modèle sera utilisé lors de la création de nouveaux scripts sans spécifier de modèle.",
+  "configuration.templates.customTemplates.description": "Liste des modèles personnalisés. Incluez les noms de fichiers relatifs au répertoire des modèles.",
+  
+  "configuration.security.allowedPaths.description": "Chemins autorisés pour l'exécution des scripts. Les scripts en dehors de ces chemins ne peuvent pas être exécutés pour des raisons de sécurité.",
+  "configuration.security.blockedExtensions.description": "Extensions de fichiers bloquées. Les fichiers avec ces extensions ne seront pas exécutés, même s'ils se trouvent dans des chemins autorisés.",
+  
+  "configuration.workspace.scriptDirectories.description": "Répertoires de scripts spécifiques à l'espace de travail. Ces répertoires sont ajoutés au chemin de recherche des scripts uniquement pour l'espace de travail actuel.",
+  "configuration.workspace.templateLocations.description": "Emplacements des modèles spécifiques à l'espace de travail. Ces répertoires sont ajoutés au chemin de recherche des modèles uniquement pour l'espace de travail actuel.",
+  "configuration.workspace.environmentVariables.description": "Variables d'environnement spécifiques à l'espace de travail. Ces variables seront disponibles pour les scripts exécutés dans l'espace de travail actuel.",
+  "configuration.workspace.pythonEnvironment.useVirtualEnv.description": "Utiliser un environnement virtuel Python pour l'espace de travail actuel. Lorsque cette option est activée, les scripts utiliseront l'interpréteur Python de l'environnement virtuel spécifié.",
+  "configuration.workspace.pythonEnvironment.virtualEnvPath.description": "Chemin vers l'environnement virtuel Python pour l'espace de travail actuel. Utilisez un chemin absolu ou un chemin relatif au dossier de l'espace de travail.",
+  "configuration.workspace.pythonEnvironment.requirementsPath.description": "Chemin vers le fichier requirements.txt pour l'espace de travail actuel. Utilisé pour l'installation automatique des dépendances dans l'environnement virtuel.",
+  
+  "command.openPanel.title": "Ouvrir le Panneau de Contrôle",
+  "command.runScript.title": "Exécuter un Script Python",
+  "command.addToChecklist.title": "Ajouter à la Liste de Vérification",
+  "command.testMessageValidation.title": "Tester la Validation des Messages",
+  "command.createNewScript.title": "Créer un Nouveau Script",
+  "command.refreshScriptsList.title": "Actualiser la Liste des Scripts",
+  
+  "view.scripts.name": "Scripts",
+  "view.scripts.contextualTitle": "Scripts DevToolkit",
+  "view.checklist.name": "Liste de Vérification",
+  "view.checklist.contextualTitle": "Liste de Vérification DevToolkit",
+  
+  "viewsContainer.sidebar.title": "DevToolkit"
+}

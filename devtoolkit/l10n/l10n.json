@@ -1,0 +1,11 @@
+{
+  "bundles": [
+    {
+      "name": "package",
+      "path": "bundle/package.nls.json",
+      "languageIds": {
+        "fr": "bundle/package.nls.fr.json"
+      }
+    }
+  ]
+}

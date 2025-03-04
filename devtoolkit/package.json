@@ -1,8 +1,8 @@
 {
   "name": "devtoolkit",
-  "displayName": "DevToolkit",
-  "description": "Extension VSCode pour la gestion d'outils de développement",
-  "version": "0.1.0",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "0.2.0",
   "publisher": "devtoolkit",
   "private": true,
   "license": "MIT",
@@ -10,46 +10,62 @@
     "type": "git",
     "url": "https://github.com/username/devtoolkit"
   },
+  "homepage": "https://github.com/username/devtoolkit#readme",
+  "bugs": {
+    "url": "https://github.com/username/devtoolkit/issues"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other",
     "Programming Languages",
-    "Snippets"
+    "Snippets",
+    "Productivity",
+    "Other",
+    "Formatters"
   ],
   "keywords": [
     "python",
     "scripts",
     "tools",
     "development",
-    "checklist"
+    "checklist",
+    "automation",
+    "code-quality",
+    "workflow",
+    "devops"
   ],
   "icon": "media/icon.svg",
   "activationEvents": [
     "onCommand:devtoolkit.openPanel",
     "onView:devtoolkit-scripts",
-    "onView:devtoolkit-checklist"
+    "onView:devtoolkit-checklist",
+    "workspaceContains:**/*.py",
+    "onLanguage:python"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
-      "title": "DevToolkit",
+      "title": "%configuration.title%",
       "properties": {
         "devtoolkit.pythonPath": {
           "type": "string",
           "default": "python",
-          "description": "Chemin vers l'exécutable Python"
+          "description": "%configuration.pythonPath.description%",
+          "pattern": "^[^\\s]+$",
+          "patternErrorMessage": "%configuration.pythonPath.patternErrorMessage%"
         },
         "devtoolkit.scriptsDirectory": {
           "type": "string",
           "default": "${extensionPath}/scripts",
-          "description": "Répertoire principal des scripts"
+          "description": "%configuration.scriptsDirectory.description%",
+          "markdownDescription": "Main directory for scripts. Supports the following variables:\n- `${extensionPath}`: Path to the extension\n- `${workspaceFolder}`: Path to the opened workspace\n- `${globalStoragePath}`: Path to global storage\n- `${home}`: User's home directory"
         },
         "devtoolkit.globalStorage": {
           "type": "boolean",
           "default": true,
-          "description": "Utiliser le stockage global pour les dépendances"
+          "description": "%configuration.globalStorage.description%",
+          "markdownDescription": "Use global storage for dependencies. When `true`, dependencies are installed in a global location shared across workspaces."
         },
         "devtoolkit.logging.level": {
           "type": "string",
@@ -59,33 +75,41 @@
             "warn",
             "error"
           ],
+          "enumDescriptions": [
+            "%configuration.logging.level.debug%",
+            "%configuration.logging.level.info%",
+            "%configuration.logging.level.warn%",
+            "%configuration.logging.level.error%"
+          ],
           "default": "info",
-          "description": "Niveau de journalisation"
+          "description": "%configuration.logging.level.description%"
         },
         "devtoolkit.logging.file": {
           "type": "boolean",
           "default": true,
-          "description": "Activer la journalisation dans un fichier"
+          "description": "%configuration.logging.file.description%"
         },
         "devtoolkit.logging.console": {
           "type": "boolean",
           "default": true,
-          "description": "Activer la journalisation dans la console"
+          "description": "%configuration.logging.console.description%"
         },
         "devtoolkit.logging.directory": {
           "type": "string",
           "default": "${globalStoragePath}/logs",
-          "description": "Répertoire des fichiers de journalisation"
+          "description": "%configuration.logging.directory.description%",
+          "markdownDescription": "Directory for log files. Supports the following variables:\n- `${extensionPath}`: Path to the extension\n- `${workspaceFolder}`: Path to the opened workspace\n- `${globalStoragePath}`: Path to global storage\n- `${home}`: User's home directory"
         },
         "devtoolkit.templates.directory": {
           "type": "string",
           "default": "${extensionPath}/templates",
-          "description": "Répertoire des modèles de scripts"
+          "description": "%configuration.templates.directory.description%",
+          "markdownDescription": "Directory for script templates. Defines where the extension looks for script templates. Supports variables like `${extensionPath}`."
         },
         "devtoolkit.templates.defaultTemplate": {
           "type": "string",
           "default": "base.py",
-          "description": "Modèle de script par défaut"
+          "description": "%configuration.templates.defaultTemplate.description%"
         },
         "devtoolkit.templates.customTemplates": {
           "type": "array",
@@ -93,7 +117,8 @@
             "type": "string"
           },
           "default": [],
-          "description": "Liste des modèles personnalisés"
+          "description": "%configuration.templates.customTemplates.description%",
+          "markdownDescription": "List of custom templates. Include file names relative to the templates directory.\n\nExample: `[\"custom_template.py\", \"subfolder/another_template.py\"]`"
         },
         "devtoolkit.security.allowedPaths": {
           "type": "array",
@@ -104,7 +129,8 @@
             "${extensionPath}",
             "${workspaceFolder}"
           ],
-          "description": "Chemins autorisés pour l'exécution des scripts"
+          "description": "%configuration.security.allowedPaths.description%",
+          "markdownDescription": "Allowed paths for script execution. Scripts outside these paths cannot be executed for security reasons.\n\nSupports variables: `${extensionPath}`, `${workspaceFolder}`, `${globalStoragePath}`, `${home}`."
         },
         "devtoolkit.security.blockedExtensions": {
           "type": "array",
@@ -120,7 +146,8 @@
             ".cmd",
             ".sh"
           ],
-          "description": "Extensions de fichiers bloquées"
+          "description": "%configuration.security.blockedExtensions.description%",
+          "markdownDescription": "Blocked file extensions. Files with these extensions will not be executed, even if they are in allowed paths.\n\nDefault blocks common executable formats across platforms."
         },
         "devtoolkit.workspace.scriptDirectories": {
           "type": "array",
@@ -128,7 +155,7 @@
             "type": "string"
           },
           "default": [],
-          "description": "Répertoires de scripts spécifiques à l'espace de travail",
+          "description": "%configuration.workspace.scriptDirectories.description%",
           "scope": "resource"
         },
         "devtoolkit.workspace.templateLocations": {
@@ -137,31 +164,35 @@
             "type": "string"
           },
           "default": [],
-          "description": "Emplacements des modèles spécifiques à l'espace de travail",
+          "description": "%configuration.workspace.templateLocations.description%",
           "scope": "resource"
         },
         "devtoolkit.workspace.environmentVariables": {
           "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
           "default": {},
-          "description": "Variables d'environnement spécifiques à l'espace de travail",
+          "description": "%configuration.workspace.environmentVariables.description%",
+          "markdownDescription": "Workspace-specific environment variables. These variables will be available to scripts run in the current workspace.\n\nExample: `{\"API_KEY\": \"your-key\", \"DEBUG\": \"true\"}`",
           "scope": "resource"
         },
         "devtoolkit.workspace.pythonEnvironment.useVirtualEnv": {
           "type": "boolean",
           "default": false,
-          "description": "Utiliser un environnement virtuel Python",
+          "description": "%configuration.workspace.pythonEnvironment.useVirtualEnv.description%",
           "scope": "resource"
         },
         "devtoolkit.workspace.pythonEnvironment.virtualEnvPath": {
           "type": "string",
           "default": "",
-          "description": "Chemin vers l'environnement virtuel",
+          "description": "%configuration.workspace.pythonEnvironment.virtualEnvPath.description%",
           "scope": "resource"
         },
         "devtoolkit.workspace.pythonEnvironment.requirementsPath": {
           "type": "string",
           "default": "",
-          "description": "Chemin vers le fichier requirements.txt",
+          "description": "%configuration.workspace.pythonEnvironment.requirementsPath.description%",
           "scope": "resource"
         }
       }
@@ -169,22 +200,46 @@
     "commands": [
       {
         "command": "devtoolkit.openPanel",
-        "title": "DevToolkit: Open Panel"
+        "title": "%command.openPanel.title%",
+        "icon": "$(layout-panel)",
+        "category": "DevToolkit"
       },
       {
         "command": "devtoolkit.runScript",
-        "title": "DevToolkit: Run Python Script"
+        "title": "%command.runScript.title%",
+        "icon": "$(play)",
+        "category": "DevToolkit"
       },
       {
         "command": "devtoolkit.addToChecklist",
-        "title": "DevToolkit: Add to Checklist"
+        "title": "%command.addToChecklist.title%",
+        "icon": "$(add)",
+        "category": "DevToolkit"
+      },
+      {
+        "command": "devtoolkit.testMessageValidation",
+        "title": "%command.testMessageValidation.title%",
+        "icon": "$(debug-alt)",
+        "category": "DevToolkit"
+      },
+      {
+        "command": "devtoolkit.createNewScript",
+        "title": "%command.createNewScript.title%",
+        "icon": "$(new-file)",
+        "category": "DevToolkit"
+      },
+      {
+        "command": "devtoolkit.refreshScriptsList",
+        "title": "%command.refreshScriptsList.title%",
+        "icon": "$(refresh)",
+        "category": "DevToolkit"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
           "id": "devtoolkit-sidebar",
-          "title": "DevToolkit",
+          "title": "%viewsContainer.sidebar.title%",
           "icon": "media/icon.svg"
         }
       ]
@@ -193,15 +248,15 @@
       "devtoolkit-sidebar": [
         {
           "id": "devtoolkit-scripts",
-          "name": "Scripts",
+          "name": "%view.scripts.name%",
           "icon": "media/icon.svg",
-          "contextualTitle": "DevToolkit Scripts"
+          "contextualTitle": "%view.scripts.contextualTitle%"
         },
         {
           "id": "devtoolkit-checklist",
-          "name": "Checklist",
+          "name": "%view.checklist.name%",
           "icon": "media/icon.svg",
-          "contextualTitle": "DevToolkit Checklist"
+          "contextualTitle": "%view.checklist.contextualTitle%"
         }
       ]
     },
@@ -210,18 +265,54 @@
         {
           "command": "devtoolkit.runScript",
           "when": "resourceExtname == .py",
-          "group": "DevToolkit"
+          "group": "DevToolkit@1"
         },
         {
           "command": "devtoolkit.addToChecklist",
-          "group": "DevToolkit"
+          "group": "DevToolkit@2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "devtoolkit.refreshScriptsList",
+          "when": "view == devtoolkit-scripts",
+          "group": "navigation"
+        },
+        {
+          "command": "devtoolkit.createNewScript",
+          "when": "view == devtoolkit-scripts",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "devtoolkit.runScript",
+          "when": "editorLangId == python"
+        },
+        {
+          "command": "devtoolkit.testMessageValidation",
+          "when": "devtoolkit.developerMode"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "devtoolkit.openPanel",
+        "key": "ctrl+shift+d",
+        "mac": "cmd+shift+d",
+        "when": "!editorFocus"
+      },
+      {
+        "command": "devtoolkit.runScript",
+        "key": "f5",
+        "when": "editorLangId == python && editorFocus"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile && npm run build-webview",
     "compile": "tsc -p ./",
+    "clean": "rimraf out",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
@@ -263,5 +354,6 @@
     "react-dom": "^19.0.0",
     "semver": "^7.7.1",
     "simple-git": "^3.27.0"
-  }
+  },
+  "l10n": "./l10n"
 }

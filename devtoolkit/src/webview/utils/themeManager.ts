@@ -20,7 +20,7 @@ export class ThemeManager {
     }
 
     private initializeTheme(): void {
-        // Détecter le thème initial
+        // Detect the initial theme
         const bodyClasses = document.body.className.split(' ');
         if (bodyClasses.includes('vscode-dark')) {
             this.currentTheme = 'dark';
@@ -30,7 +30,7 @@ export class ThemeManager {
             this.currentTheme = 'high-contrast';
         }
 
-        // Appliquer les classes de thème
+        // Apply theme classes
         this.applyThemeClasses();
     }
 
@@ -51,7 +51,7 @@ export class ThemeManager {
         this.currentTheme = newTheme;
         this.applyThemeClasses();
 
-        // Déclencher un événement personnalisé pour les composants qui doivent réagir
+        // Trigger a custom event for components that need to react
         const event = new CustomEvent('vscode-theme-change', {
             detail: { theme: newTheme }
         });
@@ -61,36 +61,36 @@ export class ThemeManager {
     private applyThemeClasses(): void {
         const root = document.documentElement;
         
-        // Supprimer les classes de thème existantes
+        // Remove existing theme classes
         root.classList.remove('theme-dark', 'theme-light', 'theme-high-contrast');
         
-        // Ajouter la nouvelle classe de thème
+        // Add the new theme class
         root.classList.add(`theme-${this.currentTheme}`);
 
-        // Mettre à jour les propriétés CSS personnalisées
+        // Update custom CSS properties
         this.updateCustomProperties();
     }
 
     private updateCustomProperties(): void {
         const style = getComputedStyle(document.documentElement);
         const customProperties = {
-            // Couleurs de base
+            // Base colors
             '--app-background': style.getPropertyValue('--vscode-editor-background'),
             '--app-foreground': style.getPropertyValue('--vscode-editor-foreground'),
             
-            // Couleurs d'accentuation
+            // Accent colors
             '--accent-color': style.getPropertyValue('--vscode-focusBorder'),
             
-            // Couleurs des états
+            // State colors
             '--hover-color': this.currentTheme === 'high-contrast'
                 ? style.getPropertyValue('--vscode-contrastActiveBorder')
                 : style.getPropertyValue('--vscode-list-hoverBackground'),
             
-            // Opacités
+            // Opacities
             '--overlay-opacity': this.currentTheme === 'high-contrast' ? '0.9' : '0.8'
         };
 
-        // Appliquer les propriétés personnalisées
+        // Apply custom properties
         Object.entries(customProperties).forEach(([key, value]) => {
             document.documentElement.style.setProperty(key, value);
         });
@@ -108,7 +108,7 @@ export class ThemeManager {
         return this.currentTheme === 'high-contrast';
     }
 
-    // Utilitaire pour obtenir une couleur adaptée au thème
+    // Utility to get a theme-adapted color
     public getThemedColor(
         darkColor: string,
         lightColor: string,
@@ -120,7 +120,7 @@ export class ThemeManager {
         return this.isDarkTheme() ? darkColor : lightColor;
     }
 
-    // Utilitaire pour obtenir une opacité adaptée au thème
+    // Utility to get a theme-adapted opacity
     public getThemedOpacity(
         darkOpacity: number,
         lightOpacity: number,
@@ -133,5 +133,5 @@ export class ThemeManager {
     }
 }
 
-// Exporter une instance unique
+// Export a singleton instance
 export const themeManager = ThemeManager.getInstance();

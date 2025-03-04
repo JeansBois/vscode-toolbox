@@ -39,7 +39,7 @@ export async function run(): Promise<void> {
             }
         });
     } catch (err) {
-        console.error('Erreur lors de la recherche des fichiers de test:', err);
+        console.error('Error while searching for test files:', err);
         throw err;
     }
 }

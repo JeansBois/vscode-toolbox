@@ -96,7 +96,7 @@ export class ExecutionLogger {
 
             fs.appendFileSync(logFile, logLine + detailsLine);
         } catch (error) {
-            console.error(`Erreur lors de l'écriture du log pour ${scriptId}:`, error);
+            console.error(`Error writing log for ${scriptId}:`, error);
         }
     }
 

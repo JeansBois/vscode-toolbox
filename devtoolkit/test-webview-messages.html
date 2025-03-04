@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebView Message Validation Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+        }
+        button {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        button:hover {
+            background-color: #106ebe;
+        }
+        .error-button {
+            background-color: #d83b01;
+        }
+        .error-button:hover {
+            background-color: #c43600;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+            margin-top: 10px;
+        }
+        #message-log {
+            height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebView Message Validation Test</h1>
+    
+    <div class="test-section">
+        <h2>Valid Messages</h2>
+        <button id="send-valid-script">Valid Script Message</button>
+        <button id="send-valid-file">Valid File Message</button>
+        <button id="send-valid-theme">Valid Theme Message</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Invalid Messages</h2>
+        <button class="error-button" id="send-missing-props">Missing Required Props</button>
+        <button class="error-button" id="send-invalid-type">Invalid Type Value</button>
+        <button class="error-button" id="send-wrong-type">Wrong Property Type</button>
+        <button class="error-button" id="send-invalid-action">Invalid Action Value</button>
+        <button class="error-button" id="send-exceed-length">Exceed Max Length</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Message Log</h2>
+        <pre id="message-log"></pre>
+    </div>
+    
+    <script>
+        // Mock the vscode API
+        const mockVscode = {
+            postMessage: function(message) {
+                logMessage(`Message sent: ${JSON.stringify(message, null, 2)}`);
+                // In a real environment, this would send the message to the extension
+            }
+        };
+        
+        // Mock the acquireVsCodeApi function
+        function acquireVsCodeApi() {
+            return mockVscode;
+        }
+        
+        // Log messages to the screen
+        function logMessage(message) {
+            const logElement = document.getElementById('message-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}\n\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        // Ensure these scripts would normally be loaded from the extension
+        // But for our test purposes, we'll simulate them here
+        
+        // Load our validation code
+        const validateMessage = function(message, type) {
+            const result = { 
+                valid: true, 
+                errors: [] 
+            };
+            
+            // Basic validation
+            if (!message || typeof message !== 'object') {
+                result.valid = false;
+                result.errors.push('Message must be an object');
+                return result;
+            }
+            
+            // Type check
+            if (!message.type || typeof message.type !== 'string') {
+                result.valid = false;
+                result.errors.push('Message type is required and must be a string');
+                return result;
+            }
+            
+            // For script messages
+            if (message.type === 'script') {
+                if (!message.action) {
+                    result.valid = false;
+                    result.errors.push('Script message requires action property');
+                } else if (!['select', 'execute', 'cancel'].includes(message.action)) {
+                    result.valid = false;
+                    result.errors.push('Script action must be select, execute, or cancel');
+                }
+                
+                if (!message.scriptId) {
+                    result.valid = false;
+                    result.errors.push('Script message requires scriptId property');
+                } else if (typeof message.scriptId !== 'string') {
+                    result.valid = false;
+                    result.errors.push('Script scriptId must be a string');
+                } else if (message.scriptId.length > 100) {
+                    result.valid = false;
+                    result.errors.push('Script scriptId exceeds max length (100)');
+                }
+                
+                if (message.files && !Array.isArray(message.files)) {
+                    result.valid = false;
+                    result.errors.push('Script files must be an array');
+                }
+            }
+            
+            // For file messages
+            if (message.type === 'file') {
+                if (!message.action) {
+                    result.valid = false;
+                    result.errors.push('File message requires action property');
+                } else if (!['select', 'deselect'].includes(message.action)) {
+                    result.valid = false;
+                    result.errors.push('File action must be select or deselect');
+                }
+                
+                if (!message.paths) {
+                    result.valid = false;
+                    result.errors.push('File message requires paths property');
+                } else if (!Array.isArray(message.paths)) {
+                    result.valid = false;
+                    result.errors.push('File paths must be an array');
+                }
+            }
+            
+            // For theme messages
+            if (message.type === 'theme') {
+                if (!message.theme) {
+                    result.valid = false;
+                    result.errors.push('Theme message requires theme property');
+                } else if (!['dark', 'light', 'high-contrast'].includes(message.theme)) {
+                    result.valid = false;
+                    result.errors.push('Theme must be dark, light, or high-contrast');
+                }
+            }
+            
+            return result;
+        };
+        
+        // Set up event listeners for test buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            const vscode = acquireVsCodeApi();
+            
+            // Valid message tests
+            document.getElementById('send-valid-script').addEventListener('click', function() {
+                const message = {
+                    type: 'script',
+                    action: 'execute',
+                    scriptId: 'test-script-123',
+                    files: ['file1.js', 'file2.js']
+                };
+                
+                const validationResult = validateMessage(message);
+                if (validationResult.valid) {
+                    vscode.postMessage(message);
+                } else {
+                    logMessage(`Validation failed: ${validationResult.errors.join(', ')}`);
+                }
+            });
+            
+            document.getElementById('send-valid-file').addEventListener('click', function() {
+                const message = {
+                    type: 'file',
+                    action: 'select',
+                    paths: ['path/to/file1.js', 'path/to/file2.js']
+                };
+                
+                const validationResult = validateMessage(message);
+                if (validationResult.valid) {
+                    vscode.postMessage(message);
+                } else {
+                    logMessage(`Validation failed: ${validationResult.errors.join(', ')}`);
+                }
+            });
+            
+            document.getElementById('send-valid-theme').addEventListener('click', function() {
+                const message = {
+                    type: 'theme',
+                    theme: 'dark'
+                };
+                
+                const validationResult = validateMessage(message);
+                if (validationResult.valid) {
+                    vscode.postMessage(message);
+                } else {
+                    logMessage(`Validation failed: ${validationResult.errors.join(', ')}`);
+                }
+            });
+            
+            // Invalid message tests
+            document.getElementById('send-missing-props').addEventListener('click', function() {
+                const message = {
+                    type: 'script'
+                    // Missing required action and scriptId
+                };
+                
+                const validationResult = validateMessage(message);
+                if (validationResult.valid) {
+                    vscode.postMessage(message);
+                } else {
+                    logMessage(`Validation failed as expected: ${validationResult.errors.join(', ')}`);
+                }
+            });
+            
+            document.getElementById('send-invalid-type').addEventListener('click', function() {
+                const message = {
+                    type: 'unknown-type',
+                    data: 'some data'
+                };
+                
+                const validationResult = validateMessage(message);
+                if (validationResult.valid) {
+                    vscode.postMessage(message);
+                } else {
+                    logMessage(`Validation failed as expected: ${validationResult.errors.join(', ')}`);
+                }
+            });
+            
+            document.getElementById('send-wrong-type').addEventListener('click', function() {
+                const message = {
+                    type: 'file',
+                    action: 'select',
+                    paths: 'not-an-array' // Should be an array
+                };
+                
+                const validationResult = validateMessage(message);
+                if (validationResult.valid) {
+                    vscode.postMessage(message);
+                } else {
+                    logMessage(`Validation failed as expected: ${validationResult.errors.join(', ')}`);
+                }
+            });
+            
+            document.getElementById('send-invalid-action').addEventListener('click', function() {
+                const message = {
+                    type: 'script',
+                    action: 'invalid-action', // Invalid action
+                    scriptId: 'test-script'
+                };
+                
+                const validationResult = validateMessage(message);
+                if (validationResult.valid) {
+                    vscode.postMessage(message);
+                } else {
+                    logMessage(`Validation failed as expected: ${validationResult.errors.join(', ')}`);
+                }
+            });
+            
+            document.getElementById('send-exceed-length').addEventListener('click', function() {
+                let longId = '';
+                for (let i = 0; i < 101; i++) {
+                    longId += 'a';
+                }
+                
+                const message = {
+                    type: 'script',
+                    action: 'execute',
+                    scriptId: longId // Exceeds max length of 100
+                };
+                
+                const validationResult = validateMessage(message);
+                if (validationResult.valid) {
+                    vscode.postMessage(message);
+                } else {
+                    logMessage(`Validation failed as expected: ${validationResult.errors.join(', ')}`);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

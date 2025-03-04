@@ -22,7 +22,7 @@ export interface ScriptInfo {
 }
 
 /**
- * Configuration d'exécution d'un script
+ * Script execution configuration
  */
 export interface ScriptExecution {
     entry_point: string;
@@ -40,7 +40,7 @@ export interface ScriptExecution {
 }
 
 /**
- * Argument d'un script
+ * Script argument
  */
 export interface ScriptArgument {
     name: string;
@@ -57,7 +57,7 @@ export interface ScriptArgument {
 }
 
 /**
- * Métadonnées d'un script
+ * Script metadata
  */
 export interface ScriptMetadata {
     created_at: string;
@@ -67,7 +67,7 @@ export interface ScriptMetadata {
 }
 
 /**
- * Résultat d'exécution d'un script
+ * Script execution result
  */
 export interface ExecutionResult {
     success: boolean;
@@ -81,7 +81,7 @@ export interface ExecutionResult {
 }
 
 /**
- * Progrès d'exécution d'un script
+ * Script execution progress
  */
 export interface ExecutionProgress {
     scriptId: string;
@@ -96,7 +96,7 @@ export interface ExecutionProgress {
 }
 
 /**
- * Statistiques d'exécution d'un script
+ * Script execution statistics
  */
 export interface ExecutionStats {
     totalExecutions: number;
@@ -113,7 +113,62 @@ export interface ExecutionStats {
 }
 
 /**
- * Manifeste complet d'un script
+ * Enhanced permission model
+ * 
+ * This interface defines the permission structure for scripts, allowing granular
+ * control over what resources and operations a script can access.
+ * 
+ * Security implications:
+ * - Controls script access to file system, network, and system resources
+ * - Prevents unauthorized access to sensitive system functionality
+ * - Enforces principle of least privilege for script execution
+ */
+export interface EnhancedPermissions {
+    /** List of modules that the script is allowed to import */
+    allowedImports?: string[];
+    
+    /** File system access permissions */
+    fileSystemPermissions?: {
+        /** Paths the script is allowed to read from */
+        read?: string[];
+        /** Paths the script is allowed to write to */
+        write?: string[];
+        /** Whether the script is allowed to delete files */
+        delete?: boolean;
+    };
+    
+    /** Network access permissions */
+    networkPermissions?: {
+        /** Hosts the script is allowed to connect to */
+        allowedHosts?: string[];
+        /** Ports the script is allowed to use */
+        allowedPorts?: number[];
+        /** Whether the script is allowed to connect to localhost */
+        allowLocalhost?: boolean;
+    };
+    
+    /** System call permissions */
+    systemCallPermissions?: {
+        /** System calls the script is allowed to make */
+        allowedCalls?: string[];
+        /** Whether the script is allowed to create subprocesses */
+        allowSubprocesses?: boolean;
+    };
+    
+    /** Whether the script is allowed to access environment variables */
+    allowEnvironmentAccess?: boolean;
+    
+    // Legacy permissions (for backward compatibility)
+    /** @deprecated Use fileSystemPermissions instead */
+    allowedPaths?: string[];
+    /** @deprecated Use networkPermissions instead */
+    allowNetworking?: boolean;
+    /** @deprecated Use fileSystemPermissions instead */
+    allowFileSystem?: boolean;
+}
+
+/**
+ * Complete script manifest
  */
 export interface ScriptManifest {
     script_info: ScriptInfo;
@@ -122,18 +177,13 @@ export interface ScriptManifest {
         input_schema?: object;
         output_schema?: object;
         signature?: string;
-        permissions?: {
-            allowedImports?: string[];
-            allowedPaths?: string[];
-            allowNetworking?: boolean;
-            allowFileSystem?: boolean;
-        };
+        permissions?: EnhancedPermissions;
     };
     metadata?: ScriptMetadata;
 }
 
 /**
- * Erreur de validation
+ * Validation error
  */
 export interface ValidationError {
     field: string;
@@ -141,15 +191,32 @@ export interface ValidationError {
 }
 
 /**
- * Résultat de validation
+ * Validation result
  */
 export interface ValidationResult {
     isValid: boolean;
     errors: ValidationError[];
+    // warnings field removed as it's no longer used in the validation result
+    dangerousOperations?: DangerousOperation[];
 }
 
 /**
- * Résultat d'installation de dépendances
+ * Dangerous operation
+ * 
+ * This is a simplified version of the DangerousOperation interface in validator.ts
+ * Just for use in validation results. The full version has more properties.
+ */
+export interface DangerousOperation {
+    type: string;
+    lineNumber: number;
+    code: string;
+    description: string;
+    severity: 'low' | 'medium' | 'high';
+    suggestedPermission?: string;
+}
+
+/**
+ * Dependency installation result
  */
 export interface InstallResult {
     success: boolean;
@@ -158,7 +225,7 @@ export interface InstallResult {
 }
 
 /**
- * Conflit de dépendances
+ * Dependency conflict
  */
 export interface DependencyConflict {
     package: string;
@@ -168,7 +235,7 @@ export interface DependencyConflict {
 }
 
 /**
- * Résultat de vérification des conflits de dépendances
+ * Dependency conflict check result
  */
 export interface DependencyConflictResult {
     hasConflicts: boolean;
@@ -182,7 +249,7 @@ export class DependencyManager {
     ) {}
 
     async installDependencies(dependencies: string[], scriptId: string): Promise<InstallResult> {
-        // Utiliser pythonRuntime pour installer les dépendances dans le chemin spécifié
+        // Use pythonRuntime to install dependencies in the specified path
         const installPath = path.join(this.dependenciesPath, scriptId);
         console.log(`Installing dependencies in ${installPath}`);
         
@@ -216,12 +283,12 @@ export class DependencyManager {
     }
 
     checkDependencyConflicts(scriptId: string): DependencyConflictResult {
-        // Vérifier les conflits avec les dépendances existantes
+        // Check conflicts with existing dependencies
         const conflicts: DependencyConflict[] = [];
         const scriptPath = path.join(this.dependenciesPath, scriptId);
         
         if (fs.existsSync(scriptPath)) {
-            // Logique de vérification des conflits
+            // Conflict verification logic
             console.log(`Checking conflicts in ${scriptPath}`);
         }
         
@@ -233,7 +300,7 @@ export class DependencyManager {
 }
 
 /**
- * Interface d'un script
+ * Script interface
  */
 export interface ScriptInterface {
     inputs?: Array<{
@@ -255,7 +322,7 @@ export interface ScriptInterface {
 }
 
 /**
- * Résultat de validation des chemins
+ * Path validation result
  */
 export interface PathValidationResult {
     isValid: boolean;

@@ -1,157 +1,227 @@
+/* Select wrapper */
 .vscode-select-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    width: 100%;
-    position: relative;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+  width: max-content;
+  position: relative;
 }
 
+.vscode-select-wrapper--full-width {
+  width: 100%;
+}
+
+/* Select label */
 .vscode-select__label {
-    font-size: 13px;
-    color: var(--input-foreground);
-    font-weight: 500;
+  display: block;
+  color: var(--vscode-foreground);
+  font-size: 0.8125rem;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
 }
 
+.vscode-select__required {
+  color: var(--vscode-errorForeground);
+  margin-left: 0.125rem;
+}
+
+/* Select container */
 .vscode-select {
-    position: relative;
-    width: 100%;
-    min-height: 28px;
-    background-color: var(--input-background);
-    border: 1px solid var(--input-border);
-    border-radius: 2px;
-    cursor: pointer;
-    transition: border-color var(--transition-duration) var(--transition-timing);
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: var(--vscode-input-border-radius, 2px);
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+  width: 100%;
 }
 
 .vscode-select:hover:not(.vscode-select--disabled) {
-    border-color: var(--input-border);
+  border-color: var(--vscode-inputOption-hoverBorder, var(--vscode-input-border));
 }
 
+.vscode-select:focus, 
 .vscode-select--open {
-    border-color: var(--focus-border);
-}
-
-.vscode-select__value {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 4px 8px;
-    min-height: 28px;
-    color: var(--input-foreground);
-    font-size: 13px;
-    line-height: 1.4;
-}
-
-.vscode-select__placeholder {
-    color: var(--input-placeholder);
-}
-
-.vscode-select__search {
-    width: 100%;
-    border: none;
-    background: none;
-    color: var(--input-foreground);
-    font-size: 13px;
-    outline: none;
-    padding: 0;
-}
-
-.vscode-select__search::placeholder {
-    color: var(--input-placeholder);
-}
-
-.vscode-select__dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    margin-top: 4px;
-    background-color: var(--input-background);
-    border: 1px solid var(--input-border);
-    border-radius: 2px;
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 1000;
-    box-shadow: 0 2px 8px var(--shadow-color);
-    animation: dropdownFadeIn 0.1s ease-out;
-}
-
-.vscode-select__group-label {
-    padding: 8px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--input-foreground);
-    opacity: 0.7;
-    text-transform: uppercase;
-    background-color: var(--input-background);
-    border-bottom: 1px solid var(--input-border);
-}
-
-.vscode-select__option {
-    padding: 6px 8px;
-    font-size: 13px;
-    color: var(--input-foreground);
-    cursor: pointer;
-    transition: background-color var(--transition-duration) var(--transition-timing);
-}
-
-.vscode-select__option:hover {
-    background-color: var(--list-hover-background);
-}
-
-.vscode-select__option--selected {
-    background-color: var(--list-active-selection-background);
-    color: var(--list-active-selection-foreground);
-}
-
-.vscode-select__no-results {
-    padding: 8px;
-    color: var(--input-foreground);
-    font-size: 13px;
-    text-align: center;
-    opacity: 0.7;
-}
-
-.vscode-select--error {
-    border-color: var(--error-foreground);
-}
-
-.vscode-select__error {
-    color: var(--error-foreground);
-    font-size: 12px;
+  border-color: var(--vscode-focusBorder);
+  outline: none;
 }
 
 .vscode-select--disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    background-color: var(--input-background);
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
 }
 
-/* Scrollbar styles */
+.vscode-select--error {
+  border-color: var(--vscode-inputValidation-errorBorder);
+}
+
+.vscode-select--error:focus {
+  box-shadow: 0 0 0 1px var(--vscode-inputValidation-errorBorder);
+}
+
+/* Select value */
+.vscode-select__value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0.5rem;
+  min-height: 1.75rem;
+  font-size: 0.8125rem;
+  width: 100%;
+}
+
+.vscode-select__placeholder {
+  color: var(--vscode-input-placeholderForeground, rgba(255, 255, 255, 0.5));
+  opacity: 0.7;
+}
+
+/* Select dropdown */
+.vscode-select__dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  max-height: 250px;
+  overflow-y: auto;
+  background-color: var(--vscode-dropdown-background);
+  border: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border));
+  border-radius: var(--vscode-input-border-radius, 2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+/* Select option */
+.vscode-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0.5rem;
+  cursor: pointer;
+  min-height: 1.75rem;
+  font-size: 0.8125rem;
+  transition: background-color 0.1s ease;
+}
+
+.vscode-select__option:hover:not(.vscode-select__option--disabled),
+.vscode-select__option--focused:not(.vscode-select__option--disabled) {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.vscode-select__option--selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.vscode-select__option--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vscode-select__selected-icon {
+  margin-left: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Select group */
+.vscode-select__group-label {
+  padding: 0.375rem 0.5rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+}
+
+/* Select search */
+.vscode-select__search {
+  width: 100%;
+  border: none;
+  background: none;
+  outline: none;
+  padding: 0;
+  font-size: 0.8125rem;
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-font-family);
+}
+
+.vscode-select__search::placeholder {
+  color: var(--vscode-input-placeholderForeground, rgba(255, 255, 255, 0.5));
+  opacity: 0.7;
+}
+
+/* No results */
+.vscode-select__no-results {
+  padding: 0.375rem 0.5rem;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  font-size: 0.8125rem;
+}
+
+/* Select message (hint/error) */
+.vscode-select__message {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  color: var(--vscode-descriptionForeground);
+}
+
+.vscode-select__message--error {
+  color: var(--vscode-errorForeground);
+}
+
+/* Scrollbar in dropdown */
 .vscode-select__dropdown::-webkit-scrollbar {
-    width: 10px;
-}
-
-.vscode-select__dropdown::-webkit-scrollbar-track {
-    background: var(--scrollbar-background);
+  width: 6px;
+  height: 6px;
 }
 
 .vscode-select__dropdown::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-background);
-    border-radius: 5px;
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 3px;
 }
 
 .vscode-select__dropdown::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-hover-background);
+  background: var(--vscode-scrollbarSlider-hoverBackground);
 }
 
-@keyframes dropdownFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-4px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.vscode-select__dropdown::-webkit-scrollbar-thumb:active {
+  background: var(--vscode-scrollbarSlider-activeBackground);
+}
+
+.vscode-select__dropdown::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* High contrast themes */
+.vscode-high-contrast .vscode-select {
+  border: 1px solid var(--vscode-contrastBorder);
+}
+
+.vscode-high-contrast .vscode-select:focus,
+.vscode-high-contrast .vscode-select--open {
+  outline: 2px solid var(--vscode-contrastActiveBorder);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.vscode-high-contrast .vscode-select__dropdown {
+  border: 1px solid var(--vscode-contrastBorder);
+  box-shadow: none;
+}
+
+.vscode-high-contrast .vscode-select__option--selected {
+  outline: 1px dotted var(--vscode-contrastActiveBorder);
+  outline-offset: -2px;
+}
+
+/* Responsive behavior */
+@media (max-width: 480px) {
+  .vscode-select-wrapper {
+    width: 100%;
+  }
 }

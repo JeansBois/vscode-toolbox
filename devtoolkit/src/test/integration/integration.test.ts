@@ -4,7 +4,7 @@ import * as path from 'path';
 import { ScriptManager } from '../../script-manager/manager';
 import { ScriptManifest } from '../../script-manager/types';
 import { ChecklistManager } from '../../file-manager/checklist';
-import { PythonRuntime } from '../../python-runtime/process';
+import { ScriptExecutor as PythonRuntime } from '../../python-runtime/process';
 
 suite('Tests d\'Intégration', () => {
     let scriptManager: ScriptManager;
@@ -130,7 +130,7 @@ suite('Tests d\'Intégration', () => {
             const endTime = Date.now();
 
             // Vérifier que toutes les opérations ont réussi
-            assert.strictEqual(results.every(r => r.exitCode === 0), true);
+            assert.strictEqual(results.every((r: { exitCode: number | null }) => r.exitCode === 0), true);
 
             // Vérifier que le temps d'exécution est raisonnable (< 5s)
             assert.ok((endTime - startTime) < 5000);
@@ -142,8 +142,9 @@ suite('Tests d\'Intégration', () => {
             const iterations = 10;
 
             for (let i = 0; i < iterations; i++) {
-                await pythonRuntime.executeScript('test_script.py', [], {
-                    env: { LARGE_DATA: largeData.toString('base64') }
+                await pythonRuntime.executeScript('test_script.py', {
+                    env: { LARGE_DATA: largeData.toString('base64') },
+                    args: []
                 });
             }
 

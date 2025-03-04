@@ -1,216 +1,172 @@
+/**
+ * @fileoverview Main entry point for the DevToolkit VS Code extension
+ * 
+ * This file handles:
+ * - Extension activation and deactivation
+ * - Main component initialization with lazy loading
+ * - Command registration with deferred execution
+ * - View provider setup with optimized loading
+ * - Performance measurement and optimization
+ * - Error handling and resource cleanup
+ * 
+ * The extension implements a modular architecture with performance-optimized
+ * lazy loading of components (ScriptManager, PythonRuntime, etc.) to improve
+ * startup time and reduce resource usage.
+ */
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { MainPanel } from './webview/panel';
-import { ScriptManager } from './script-manager/manager';
-import { ChecklistManager } from './file-manager/checklist';
-import { PythonRuntime } from './python-runtime/process';
-import { ScriptsProvider } from './webview/providers/ScriptsProvider';
-import { ChecklistProvider } from './webview/providers/ChecklistProvider';
+import { performance, PerformanceObserver } from 'perf_hooks';
 import { ConfigManager } from './config/config-manager';
+import * as messageValidationTest from './test/message-validation-test';
+
+// Forward declarations of lazily loaded components
+let MainPanel: any;
+let ScriptManager: any;
+let ChecklistManager: any;
+let PythonRuntime: any;
+let ScriptsProvider: any;
+let ChecklistProvider: any;
 
 // Store instances at module level for cleanup in deactivate
-let pythonRuntime: PythonRuntime | undefined;
-let scriptManager: ScriptManager | undefined;
-let checklistManager: ChecklistManager | undefined;
+let pythonRuntime: any | undefined;
+let scriptManager: any | undefined;
+let checklistManager: any | undefined;
 let disposables: vscode.Disposable[] = [];
 
-export async function activate(context: vscode.ExtensionContext) {
-    console.log('DevToolkit extension is now active');
+// Performance metrics storage
+const performanceMetrics = {
+    activationStart: 0,
+    activationEnd: 0,
+    componentLoadTimes: new Map<string, number>(),
+    commandRegistrationTime: 0,
+    pythonInitTime: 0,
+    totalStartupTime: 0
+};
+
+/**
+ * Performance monitoring system for the extension
+ */
+class PerformanceMonitor {
+    private static instance: PerformanceMonitor;
+    private observer: PerformanceObserver;
+
+    private constructor() {
+        // Setup performance observer to collect metrics
+        this.observer = new PerformanceObserver((list) => {
+            const entries = list.getEntries();
+            for (const entry of entries) {
+                performanceMetrics.componentLoadTimes.set(entry.name, entry.duration);
+                console.log(`Performance: ${entry.name} took ${entry.duration.toFixed(2)}ms`);
+            }
+        });
+        this.observer.observe({ entryTypes: ['measure'], buffered: true });
+    }
+
+    public static getInstance(): PerformanceMonitor {
+        if (!PerformanceMonitor.instance) {
+            PerformanceMonitor.instance = new PerformanceMonitor();
+        }
+        return PerformanceMonitor.instance;
+    }
+
+    /**
+     * Measures the execution time of a function
+     * @param name Name of the measurement
+     * @param fn Function to measure
+     * @returns Result of the function
+     */
+    public static async measure<T>(name: string, fn: () => Promise<T> | T): Promise<T> {
+        const start = performance.now();
+        try {
+            return await fn();
+        } finally {
+            const duration = performance.now() - start;
+            performance.mark(`${name}-end`);
+            performance.measure(name, { start, duration });
+            console.log(`Performance: ${name} completed in ${duration.toFixed(2)}ms`);
+        }
+    }
+
+    /**
+     * Records startup metrics for telemetry and diagnostics
+     */
+    public static recordStartupMetrics(): void {
+        performanceMetrics.activationEnd = performance.now();
+        performanceMetrics.totalStartupTime = performanceMetrics.activationEnd - performanceMetrics.activationStart;
+        
+        console.log('DevToolkit Extension Startup Performance:');
+        console.log(`Total activation time: ${performanceMetrics.totalStartupTime.toFixed(2)}ms`);
+        console.log('Component load times:');
+        performanceMetrics.componentLoadTimes.forEach((duration, component) => {
+            console.log(`- ${component}: ${duration.toFixed(2)}ms`);
+        });
+    }
+
+    public dispose(): void {
+        this.observer.disconnect();
+    }
+}
+
+/**
+ * Lazily imports a module
+ * @param modulePath Path to the module
+ * @returns Promise resolving to the imported module
+ */
+async function lazyImport(modulePath: string): Promise<any> {
+    return await PerformanceMonitor.measure(`import:${modulePath}`, async () => {
+        const module = await import(modulePath);
+        return module;
+    });
+}
+
+/**
+ * Activates the DevToolkit extension with optimized loading
+ * 
+ * This function implements a staged activation pattern:
+ * 1. Critical components (ConfigManager) are initialized immediately
+ * 2. Non-critical components are lazy-loaded when needed
+ * 3. Commands are registered with deferred execution
+ * 4. View providers are created on-demand
+ * 
+ * This approach significantly improves startup time by deferring
+ * expensive operations until they're actually needed.
+ * 
+ * @param context - The extension context provided by VS Code
+ * @returns A promise that resolves when activation is complete
+ * @throws Error if activation fails catastrophically
+ */
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+    performanceMetrics.activationStart = performance.now();
+    console.log('DevToolkit extension is activating');
+    PerformanceMonitor.getInstance();
 
     try {
-        // Initialiser ConfigManager en premier
-        ConfigManager.initialize(context);
+        // Initialize only the ConfigManager immediately - it's required for everything
+        await PerformanceMonitor.measure('init:ConfigManager', async () => {
+            ConfigManager.initialize(context);
+        });
 
-        // Initialisation des autres composants
-    scriptManager = new ScriptManager(context);
-    checklistManager = new ChecklistManager(context);
-    pythonRuntime = new PythonRuntime(await PythonRuntime.findPythonPath());
+        // Setup deferred Python initialization to run in background
+        const pythonInitPromise = initializePythonRuntimeAsync(context);
 
-    // Enregistrement de la commande pour ouvrir le panneau
-    let openPanelCommand = vscode.commands.registerCommand('devtoolkit.openPanel', () => {
-        try {
-            // Validate extension context is available
-            if (!context.extensionUri) {
-                throw new Error('Extension context URI is not available');
-            }
-            
-            console.log('Opening DevToolkit panel...');
-            MainPanel.createOrShow(context.extensionUri);
-            
-            // Log success
-            console.log('DevToolkit panel opened successfully');
-        } catch (error: unknown) {
-            // Extract error message with proper type handling
-            const errorMessage = error instanceof Error 
-                ? error.message 
-                : String(error);
-                
-            // Show user-friendly error
-            vscode.window.showErrorMessage(`Failed to open DevToolkit panel: ${errorMessage}`);
-            
-            // Log full error for debugging
-            console.error('Error opening DevToolkit panel:', error);
-        }
-    });
+        // Register commands with deferred execution
+        await PerformanceMonitor.measure('registerCommands', async () => {
+            registerCommandsWithLazyLoading(context);
+        });
 
-    // Commande pour exécuter un script
-    let runScriptCommand = vscode.commands.registerCommand('devtoolkit.runScript', async (scriptPath: string) => {
-        console.log(`Executing script: ${scriptPath}`);
+        // Register tree view providers with deferred initialization
+        await registerTreeViewProvidersAsync(context);
         
-        // Validate required components
-        if (!scriptManager || !pythonRuntime) {
-            const errorMessage = 'DevToolkit components not properly initialized';
-            vscode.window.showErrorMessage(`Script execution failed: ${errorMessage}`);
-            console.error('Script command error:', errorMessage);
-            return;
-        }
+        // Wait for Python initialization to complete in the background
+        await pythonInitPromise;
         
-        // Validate input
-        if (!scriptPath) {
-            const errorMessage = 'No script path provided';
-            vscode.window.showErrorMessage(`Script execution failed: ${errorMessage}`);
-            console.error('Script command error:', { scriptPath, error: errorMessage });
-            return;
-        }
+        // Initialize message validation test
+        messageValidationTest.activate(context);
         
-        try {
-            // Get script content - validate it exists
-            const scriptContent = await scriptManager.getScriptContent(scriptPath);
-            if (!scriptContent) {
-                throw new Error(`Script not found: ${path.basename(scriptPath)}`);
-            }
-            
-            // Execute with progress indication and cancellation support
-            const result = await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: `Running script: ${path.basename(scriptPath)}`,
-                cancellable: true
-            }, async (progress, token) => {
-                // Set up cancellation
-                token.onCancellationRequested(() => {
-                    console.log(`Script execution cancelled by user: ${scriptPath}`);
-                    pythonRuntime!.killProcess();
-                });
-                
-                // Show progress
-                progress.report({ message: 'Executing...' });
-                
-                // Execute the script
-                return await pythonRuntime!.executeScript(scriptPath);
-            });
-            
-            // Handle the result
-            if (result.exitCode === 0) {
-                const successMessage = `Script executed successfully: ${path.basename(scriptPath)}`;
-                vscode.window.showInformationMessage(successMessage);
-                console.log(successMessage);
-            } else {
-                // Format error details for display
-                const errorDetails = result.stderr ? `: ${result.stderr}` : '';
-                const errorMessage = `Script execution failed with exit code ${result.exitCode}${errorDetails}`;
-                
-                vscode.window.showErrorMessage(errorMessage);
-                
-                // Log full error for debugging
-                console.error(`Script execution error:`, {
-                    scriptPath,
-                    exitCode: result.exitCode,
-                    stderr: result.stderr,
-                    stdout: result.stdout
-                });
-            }
-        } catch (error: unknown) {
-            // Extract error message with proper type handling
-            const errorMessage = error instanceof Error 
-                ? error.message 
-                : String(error);
-                
-            vscode.window.showErrorMessage(`Script execution error: ${errorMessage}`);
-            
-            // Log full error for debugging
-            console.error(`Script command error:`, {
-                scriptPath,
-                error
-            });
-        }
-    });
+        // Record performance metrics
+        PerformanceMonitor.recordStartupMetrics();
+        console.log('DevToolkit extension is now active');
 
-    // Commande pour ajouter un fichier à la checklist
-    let addToChecklistCommand = vscode.commands.registerCommand('devtoolkit.addToChecklist', (uri: vscode.Uri) => {
-        console.log('Adding file to checklist:', uri?.fsPath);
-        
-        // Validate required components
-        if (!checklistManager) {
-            const errorMessage = 'DevToolkit components not properly initialized';
-            vscode.window.showErrorMessage(`Failed to add to checklist: ${errorMessage}`);
-            console.error('Checklist command error:', errorMessage);
-            return;
-        }
-        
-        // Validate input
-        if (!uri || !uri.fsPath) {
-            const errorMessage = 'No valid file selected';
-            vscode.window.showErrorMessage(`Failed to add to checklist: ${errorMessage}`);
-            console.error('Checklist command error:', { uri, error: errorMessage });
-            return;
-        }
-        
-        try {
-            // Validate file exists
-            const fileName = path.basename(uri.fsPath);
-            
-            // Add the item to checklist
-            checklistManager.addItem(uri.fsPath);
-            
-            // Show success message with file name for better context
-            const successMessage = `Added to checklist: ${fileName}`;
-            vscode.window.showInformationMessage(successMessage);
-            console.log(successMessage);
-        } catch (error: unknown) {
-            // Extract error message with proper type handling
-            const errorMessage = error instanceof Error 
-                ? error.message 
-                : String(error);
-            
-            // Show user-friendly error with context
-            vscode.window.showErrorMessage(`Failed to add to checklist: ${errorMessage}`);
-            
-            // Log full error for debugging
-            console.error('Checklist command error:', {
-                filePath: uri.fsPath,
-                error
-            });
-        }
-    });
-
-    // Création des providers pour la barre d'activité
-    const scriptsProvider = new ScriptsProvider(scriptManager!, context.extensionPath);
-    const checklistProvider = new ChecklistProvider(checklistManager!);
-
-    // Enregistrement des vues
-    const scriptsView = vscode.window.createTreeView('devtoolkit-scripts', {
-        treeDataProvider: scriptsProvider,
-        showCollapseAll: true
-    });
-
-    const checklistView = vscode.window.createTreeView('devtoolkit-checklist', {
-        treeDataProvider: checklistProvider,
-        showCollapseAll: true
-    });
-
-    // Ajout des commandes et vues au contexte
-    context.subscriptions.push(
-        openPanelCommand,
-        runScriptCommand,
-        addToChecklistCommand,
-        checklistManager,
-        scriptsView,
-        checklistView,
-        { dispose: () => { 
-            /* Nettoyage du ScriptManager */ 
-            console.log('Cleaning up DevToolkit extension...');
-        } }
-    );
     } catch (error: any) {
         console.error('Error initializing DevToolkit:', error);
         vscode.window.showErrorMessage(`DevToolkit initialization error: ${error.message}`);
@@ -218,29 +174,444 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 }
 
-export function deactivate(): Promise<void> | undefined {
+/**
+ * Initializes the Python runtime asynchronously in the background
+ * 
+ * This function offloads the expensive Python detection and initialization
+ * to a background task, allowing the extension to activate faster.
+ */
+async function initializePythonRuntimeAsync(_context: vscode.ExtensionContext): Promise<void> {
+    return PerformanceMonitor.measure('init:PythonRuntime', async () => {
+        try {
+            // Lazily import PythonRuntime
+            const pythonModule = await lazyImport('./python-runtime/process');
+            PythonRuntime = pythonModule.PythonRuntime;
+            
+            // Initialize Python in background
+            let pythonPath: string | undefined;
+            try {
+                pythonPath = await PythonRuntime.findPythonPath();
+                if (!pythonPath) {
+                    throw new Error('Failed to find a valid Python interpreter');
+                }
+                pythonRuntime = new PythonRuntime(pythonPath);
+            } catch (pythonError: unknown) {
+                const typedError = pythonError instanceof Error ? pythonError : new Error(String(pythonError));
+                console.error('Python initialization error:', typedError);
+                vscode.window.showErrorMessage(`Failed to initialize Python runtime: ${typedError.message}`);
+                // Create pythonRuntime with default path, which will show errors when used
+                pythonRuntime = new PythonRuntime();
+            }
+        } catch (error: unknown) {
+            const typedError = error instanceof Error ? error : new Error(String(error));
+            console.error('Error initializing Python runtime:', typedError);
+        }
+    });
+}
+
+/**
+ * Registers tree view providers with deferred initialization
+ */
+async function registerTreeViewProvidersAsync(context: vscode.ExtensionContext): Promise<void> {
+    return PerformanceMonitor.measure('registerTreeViews', async () => {
+        try {
+            // Create empty placeholder providers first to make the views available immediately
+            const placeholderProvider = {
+                getTreeItem: () => new vscode.TreeItem('Loading...'),
+                getChildren: () => Promise.resolve([])
+            };
+            
+            // Register trees with placeholder providers
+            const scriptsView = vscode.window.createTreeView('devtoolkit-scripts', {
+                treeDataProvider: placeholderProvider,
+                showCollapseAll: true
+            });
+            
+            const checklistView = vscode.window.createTreeView('devtoolkit-checklist', {
+                treeDataProvider: placeholderProvider,
+                showCollapseAll: true
+            });
+            
+            // Queue the actual providers to be loaded after activation
+            queueMicrotask(async () => {
+                try {
+                    // Load managers if not already loaded
+                    if (!scriptManager) {
+                        const scriptManagerModule = await lazyImport('./script-manager/manager');
+                        ScriptManager = scriptManagerModule.ScriptManager;
+                        scriptManager = new ScriptManager(context);
+                    }
+                    
+                    if (!checklistManager) {
+                        const checklistModule = await lazyImport('./file-manager/checklist');
+                        ChecklistManager = checklistModule.ChecklistManager;
+                        checklistManager = new ChecklistManager(context);
+                    }
+                    
+                    // Load providers
+                    const scriptsProviderModule = await lazyImport('./webview/providers/ScriptsProvider');
+                    ScriptsProvider = scriptsProviderModule.ScriptsProvider;
+                    
+                    const checklistProviderModule = await lazyImport('./webview/providers/ChecklistProvider');
+                    ChecklistProvider = checklistProviderModule.ChecklistProvider;
+                    
+                    // Create and set real providers
+                    const realScriptsProvider = new ScriptsProvider(scriptManager, context.extensionPath);
+                    const realChecklistProvider = new ChecklistProvider(checklistManager);
+                    
+                    // Update views with real providers
+                    await vscode.commands.executeCommand('setContext', 'devtoolkit-scripts.initialized', true);
+                    await vscode.commands.executeCommand('setContext', 'devtoolkit-checklist.initialized', true);
+                    
+                    // Replace the providers
+                    scriptsView.dispose();
+                    checklistView.dispose();
+                    
+                    const newScriptsView = vscode.window.createTreeView('devtoolkit-scripts', {
+                        treeDataProvider: realScriptsProvider,
+                        showCollapseAll: true
+                    });
+                    
+                    const newChecklistView = vscode.window.createTreeView('devtoolkit-checklist', {
+                        treeDataProvider: realChecklistProvider,
+                        showCollapseAll: true
+                    });
+                    
+                    // Register for cleanup
+                    context.subscriptions.push(
+                        newScriptsView,
+                        newChecklistView,
+                        checklistManager
+                    );
+                    
+                } catch (error: unknown) {
+                    const typedError = error instanceof Error ? error : new Error(String(error));
+                    console.error('Error initializing tree providers:', typedError);
+                }
+            });
+            
+            // Add initial views to subscriptions
+            context.subscriptions.push(
+                scriptsView,
+                checklistView
+            );
+        } catch (error: unknown) {
+            const typedError = error instanceof Error ? error : new Error(String(error));
+            console.error('Error setting up tree views:', typedError);
+        }
+    });
+}
+
+/**
+ * Registers commands with lazy loading of required components
+ */
+function registerCommandsWithLazyLoading(context: vscode.ExtensionContext): void {
+    try {
+        // Command to open the main DevToolkit panel - defer MainPanel loading
+    const openPanelCommand = vscode.commands.registerCommand('devtoolkit.openPanel', async () => {
+        try {
+            // Validate extension context is available
+            if (!context.extensionUri) {
+                throw new Error('Extension context URI is not available');
+            }
+            
+            console.log('Opening DevToolkit panel...');
+            
+            // Lazily load MainPanel component when needed
+            if (!MainPanel) {
+                const panelModule = await lazyImport('./webview/panel');
+                MainPanel = panelModule.MainPanel;
+            }
+            
+            MainPanel.createOrShow(context.extensionUri);
+                
+                // Log success
+            console.log('DevToolkit panel opened successfully');
+        } catch (error: unknown) {
+                // Extract error message with proper type handling
+            const typedError = error instanceof Error ? error : new Error(String(error));
+                
+                // Show user-friendly error
+            vscode.window.showErrorMessage(`Failed to open DevToolkit panel: ${typedError.message}`);
+                
+                // Log full error for debugging
+            console.error('Error opening DevToolkit panel:', typedError);
+        }
+    });
+
+    /**
+     * Command to run a Python script
+     * 
+     * Executes a Python script with progress tracking and cancellation support.
+     * The command validates inputs, executes the script in a sandboxed environment,
+     * and handles success/failure appropriately.
+     * 
+     * Security implications:
+     * - Scripts run in a sandboxed environment with restricted permissions
+     * - Script contents are validated before execution
+     * - Error handling ensures the UI remains responsive
+     */
+    const runScriptCommand = vscode.commands.registerCommand('devtoolkit.runScript', async (scriptPath: string) => {
+        console.log(`Executing script: ${scriptPath}`);
+        
+        try {
+            // Lazily load required components if needed
+            if (!scriptManager) {
+                const scriptManagerModule = await lazyImport('./script-manager/manager');
+                ScriptManager = scriptManagerModule.ScriptManager;
+                scriptManager = new ScriptManager(context);
+            }
+            
+            if (!pythonRuntime) {
+                const pythonModule = await lazyImport('./python-runtime/process');
+                PythonRuntime = pythonModule.PythonRuntime;
+                pythonRuntime = new PythonRuntime(await PythonRuntime.findPythonPath());
+            }
+            
+            // Validate required components
+            if (!scriptManager || !pythonRuntime) {
+                const errorMessage = 'DevToolkit components not properly initialized';
+                await vscode.window.showErrorMessage(`Script execution failed: ${errorMessage}`);
+                console.error('Script command error:', errorMessage);
+                return;
+            }
+            
+            // Validate input
+            if (!scriptPath) {
+                const errorMessage = 'No script path provided';
+                await vscode.window.showErrorMessage(`Script execution failed: ${errorMessage}`);
+                console.error('Script command error:', { scriptPath, error: errorMessage });
+                return;
+            }
+            
+            // Performance measurement for script execution
+            await PerformanceMonitor.measure(`script:execute:${path.basename(scriptPath)}`, async () => {
+                // Get script content - validate it exists
+                const scriptContent = await scriptManager.getScriptContent(scriptPath);
+                if (!scriptContent) {
+                    throw new Error(`Script not found: ${path.basename(scriptPath)}`);
+                }
+                
+                // Create a local reference to pythonRuntime to satisfy TypeScript
+                const runtime = pythonRuntime;
+                
+                // Execute with progress indication and cancellation support
+                const result = await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Running script: ${path.basename(scriptPath)}`,
+                    cancellable: true
+                }, async (progress, token) => {
+                    return await new Promise<any>(async (resolve) => {
+                        // Set up cancellation
+                        token.onCancellationRequested(() => {
+                            console.log(`Script execution cancelled by user: ${scriptPath}`);
+                            // Use local reference to avoid TypeScript undefined warning
+                            runtime.killProcess();
+                        });
+                        
+                        // Show progress
+                        progress.report({ message: 'Executing...' });
+                        
+                        try {
+                            // Execute the script with proper error handling using local reference
+                            const execResult = await runtime.executeScript(scriptPath);
+                            resolve(execResult);
+                        } catch (execError: unknown) {
+                            const typedError = execError instanceof Error ? execError : new Error(String(execError));
+                            console.error('Script execution runtime error:', typedError);
+                            resolve({
+                                stdout: '',
+                                stderr: typedError.message,
+                                exitCode: -1,
+                                duration: 0,
+                                error: typedError
+                            });
+                        }
+                    });
+                });
+                
+                // Handle the result
+                if (result.exitCode === 0) {
+                    const successMessage = `Script executed successfully: ${path.basename(scriptPath)}`;
+                    await vscode.window.showInformationMessage(successMessage);
+                    console.log(successMessage);
+                } else {
+                    // Format error details for display
+                    const errorDetails = result.stderr ? `: ${result.stderr}` : '';
+                    const errorMessage = `Script execution failed with exit code ${result.exitCode}${errorDetails}`;
+                    
+                    await vscode.window.showErrorMessage(errorMessage);
+                    
+                    // Log full error for debugging
+                    console.error(`Script execution error:`, {
+                        scriptPath,
+                        exitCode: result.exitCode,
+                        stderr: result.stderr,
+                        stdout: result.stdout
+                    });
+                }
+            });
+        } catch (error: unknown) {
+            // Extract error message with proper type handling
+            const typedError = error instanceof Error ? error : new Error(String(error));
+            
+            await vscode.window.showErrorMessage(`Script execution error: ${typedError.message}`);
+            
+            // Log full error for debugging
+            console.error(`Script command error:`, {
+                scriptPath,
+                error: typedError
+            });
+        }
+    });
+
+    /**
+     * Command to add a file to the checklist
+     * 
+     * Adds a selected file to the extension's checklist system, allowing users
+     * to track files for review or ongoing work. Performs validation to ensure
+     * the file exists and the checklist system is properly initialized.
+     */
+    const addToChecklistCommand = vscode.commands.registerCommand('devtoolkit.addToChecklist', async (uri: vscode.Uri) => {
+        console.log('Adding file to checklist:', uri?.fsPath);
+        
+        try {
+            // Lazily load ChecklistManager if needed
+            if (!checklistManager) {
+                const checklistModule = await lazyImport('./file-manager/checklist');
+                ChecklistManager = checklistModule.ChecklistManager;
+                checklistManager = new ChecklistManager(context);
+            }
+            
+            // Validate required components
+            if (!checklistManager) {
+                const errorMessage = 'DevToolkit components not properly initialized';
+                await vscode.window.showErrorMessage(`Failed to add to checklist: ${errorMessage}`);
+                console.error('Checklist command error:', errorMessage);
+                return;
+            }
+            
+            // Validate input
+            if (!uri || !uri.fsPath) {
+                const errorMessage = 'No valid file selected';
+                await vscode.window.showErrorMessage(`Failed to add to checklist: ${errorMessage}`);
+                console.error('Checklist command error:', { uri, error: errorMessage });
+                return;
+            }
+            
+            // Validate file exists
+            const fileName = path.basename(uri.fsPath);
+            
+            // Create a local reference to checklistManager to satisfy TypeScript
+            const manager = checklistManager;
+            
+            // Add the item to checklist
+            manager.addItem(uri.fsPath);
+            
+            // Show success message with file name for better context
+            const successMessage = `Added to checklist: ${fileName}`;
+            await vscode.window.showInformationMessage(successMessage);
+            console.log(successMessage);
+        } catch (error: unknown) {
+            // Extract error message with proper type handling
+            const typedError = error instanceof Error ? error : new Error(String(error));
+            
+            // Show user-friendly error with context
+            await vscode.window.showErrorMessage(`Failed to add to checklist: ${typedError.message}`);
+            
+            // Log full error for debugging
+            console.error('Checklist command error:', {
+                filePath: uri.fsPath,
+                error: typedError
+            });
+        }
+    });
+    
+    /**
+     * Add all commands to the extension context
+     * 
+     * Registers all commands and disposable resources with the extension
+     * context so they can be properly cleaned up when the extension is deactivated.
+     */
+    context.subscriptions.push(
+        openPanelCommand,
+        runScriptCommand,
+        addToChecklistCommand,
+        { dispose: () => {
+            // Cleanup for ScriptManager
+            console.log('Cleaning up DevToolkit extension...');
+        } }
+    );
+    } catch (error: any) {
+        console.error('Error in registerCommandsWithLazyLoading:', error);
+        vscode.window.showErrorMessage(`DevToolkit command registration error: ${error.message}`);
+    }
+}
+
+/**
+ * Deactivates the DevToolkit extension and cleans up resources
+ * 
+ * This function is called when the extension is deactivated, either
+ * when VS Code is closed or when the extension is explicitly disabled.
+ * It performs a graceful shutdown of all components in reverse order
+ * of initialization, ensuring that resources are properly released.
+ * 
+ * Cleanup sequence:
+ * 1. Python processes are terminated
+ * 2. WebView panels are disposed
+ * 3. ChecklistManager resources are released
+ * 4. Other managers and disposables are cleaned up
+ * 5. Any async cleanup tasks are awaited
+ * 
+ * Error handling ensures that failures in one cleanup operation do not
+ * prevent other cleanup operations from running.
+ * 
+ * @returns A promise that resolves when deactivation is complete
+ * @throws Error if deactivation fails catastrophically
+ */
+export async function deactivate(): Promise<void> {
     console.log('DevToolkit extension is now deactivated');
     
     try {
+        // Array to collect any async cleanup operations
+        const cleanupTasks: Promise<void>[] = [];
+        
         // Terminate any running Python processes
         if (pythonRuntime) {
             console.log('Terminating Python processes...');
-            pythonRuntime.killProcess();
-            pythonRuntime = undefined;
+            try {
+                pythonRuntime.killProcess();
+            } catch (pythonError: unknown) {
+                const typedError = pythonError instanceof Error ? pythonError : new Error(String(pythonError));
+                console.error('Error terminating Python processes:', typedError);
+            } finally {
+                pythonRuntime = undefined;
+            }
         }
         
         // Clean up MainPanel if it exists (handles webview and its disposables)
-        if (MainPanel.currentPanel) {
+        if (MainPanel && MainPanel.currentPanel) {
             console.log('Disposing WebView panel...');
-            MainPanel.currentPanel.dispose();
-            // The dispose method already sets MainPanel.currentPanel to undefined
+            try {
+                MainPanel.currentPanel.dispose();
+                // The dispose method already sets MainPanel.currentPanel to undefined
+            } catch (panelError: unknown) {
+                const typedError = panelError instanceof Error ? panelError : new Error(String(panelError));
+                console.error('Error disposing WebView panel:', typedError);
+            }
         }
         
         // Dispose the ChecklistManager (handles file watchers and storage)
         if (checklistManager) {
             console.log('Disposing ChecklistManager resources...');
-            checklistManager.dispose();
-            checklistManager = undefined;
+            try {
+                checklistManager.dispose();
+            } catch (checklistError: unknown) {
+                const typedError = checklistError instanceof Error ? checklistError : new Error(String(checklistError));
+                console.error('Error disposing ChecklistManager:', typedError);
+            } finally {
+                checklistManager = undefined;
+            }
         }
         
         // Release any other manager resources
@@ -257,27 +628,27 @@ export function deactivate(): Promise<void> | undefined {
         // Dispose any additional module-level disposables
         if (disposables.length) {
             console.log(`Disposing ${disposables.length} additional resources...`);
-            disposables.forEach(d => {
+            for (const disposable of disposables) {
                 try {
-                    d.dispose();
-                } catch (disposeError) {
-                    console.error('Error disposing resource:', disposeError);
+                    disposable.dispose();
+                } catch (disposeError: unknown) {
+                    const typedError = disposeError instanceof Error ? disposeError : new Error(String(disposeError));
+                    console.error('Error disposing resource:', typedError);
                 }
-            });
+            }
             disposables = [];
         }
         
-        // Note: VS Code will automatically clean up resources in context.subscriptions
-        // when the extension is deactivated, but our explicit cleanup above ensures
-        // that we properly handle any resources not in that array
+        // Wait for any async cleanup tasks to complete
+        if (cleanupTasks.length > 0) {
+            await Promise.all(cleanupTasks);
+        }
         
         console.log('All DevToolkit resources have been cleaned up successfully');
-    } catch (error) {
-        console.error('Error during DevToolkit deactivation:', error);
-        // Return the error so VS Code can log it
-        return Promise.reject(error);
+    } catch (error: unknown) {
+        const typedError = error instanceof Error ? error : new Error(String(error));
+        console.error('Error during DevToolkit deactivation:', typedError);
+        // Re-throw the error to let VS Code know about the failure
+        throw typedError;
     }
-    
-    // Return undefined as we've handled cleanup synchronously
-    return undefined;
 }

@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { PythonRuntime } from '../python-runtime/process';
+import { ScriptExecutor as PythonRuntime } from '../python-runtime/process';
 import {
     InstallResult,
     DependencyConflictResult,
@@ -33,7 +33,7 @@ export class DependencyManager {
                 this.installedDependencies = new Map(Object.entries(data));
             }
         } catch (error) {
-            console.error('Erreur lors du chargement des dépendances:', error);
+            console.error('Error while loading dependencies:', error);
             this.installedDependencies = new Map();
         }
     }
@@ -43,7 +43,7 @@ export class DependencyManager {
             const data = Object.fromEntries(this.installedDependencies);
             fs.writeFileSync(this.dependencyFile, JSON.stringify(data, null, 2));
         } catch (error) {
-            console.error('Erreur lors de la sauvegarde des dépendances:', error);
+            console.error('Error while saving dependencies:', error);
         }
     }
 
@@ -51,7 +51,9 @@ export class DependencyManager {
         try {
             const result = await this.pythonRuntime.executeScript(
                 '-m',
-                ['pip', 'show', packageName]
+                {
+                    args: ['pip', 'show', packageName]
+                }
             );
 
             if (result.exitCode === 0) {
@@ -60,7 +62,7 @@ export class DependencyManager {
             }
             return null;
         } catch (error) {
-            console.error(`Erreur lors de la vérification de la version de ${packageName}:`, error);
+            console.error(`Error while verifying version of ${packageName}:`, error);
             return null;
         }
     }
@@ -73,7 +75,9 @@ export class DependencyManager {
             try {
                 const result = await this.pythonRuntime.executeScript(
                     '-m',
-                    ['pip', 'install', dep]
+                    {
+                        args: ['pip', 'install', dep]
+                    }
                 );
 
                 if (result.exitCode === 0) {
@@ -86,13 +90,13 @@ export class DependencyManager {
                             scriptId
                         });
                     } else {
-                        errors.push(`Impossible de vérifier la version de ${dep}`);
+                        errors.push(`Unable to verify version of ${dep}`);
                     }
                 } else {
-                    errors.push(`Erreur lors de l'installation de ${dep}: ${result.stderr}`);
+                    errors.push(`Error during installation of ${dep}: ${result.stderr}`);
                 }
             } catch (error) {
-                errors.push(`Exception lors de l'installation de ${dep}: ${error}`);
+                errors.push(`Exception during installation of ${dep}: ${error}`);
             }
         }
 
@@ -139,11 +143,13 @@ export class DependencyManager {
             try {
                 await this.pythonRuntime.executeScript(
                     '-m',
-                    ['pip', 'uninstall', '-y', pkg]
+                    {
+                        args: ['pip', 'uninstall', '-y', pkg]
+                    }
                 );
                 this.installedDependencies.delete(pkg);
             } catch (error) {
-                console.error(`Erreur lors de la désinstallation de ${pkg}:`, error);
+                console.error(`Error during uninstallation of ${pkg}:`, error);
             }
         }
 

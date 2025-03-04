@@ -1,6 +1,9 @@
 import { EventEmitter } from 'events';
 import { ExecutionResult } from '../types';
 
+/**
+ * Enumeration of all script-related event types
+ */
 export enum ScriptEvent {
     // Événements du cycle de vie
     Created = 'script:created',
@@ -30,28 +33,215 @@ export enum ScriptEvent {
     CacheError = 'script:cache:error'
 }
 
-export interface ScriptEventData {
+/**
+ * Common properties for all script event data
+ */
+export interface BaseScriptEventData {
     scriptId: string;
     timestamp: number;
-    details?: any;
+    eventType: ScriptEvent;
 }
 
-export interface ExecutionProgressData extends ScriptEventData {
+/**
+ * Script creation event data
+ */
+export interface ScriptCreatedData extends BaseScriptEventData {
+    eventType: ScriptEvent.Created;
+    scriptPath: string;
+    manifest: Record<string, unknown>;
+}
+
+/**
+ * Script update event data
+ */
+export interface ScriptUpdatedData extends BaseScriptEventData {
+    eventType: ScriptEvent.Updated;
+    scriptPath: string;
+    changes: Record<string, unknown>;
+}
+
+/**
+ * Script deletion event data
+ */
+export interface ScriptDeletedData extends BaseScriptEventData {
+    eventType: ScriptEvent.Deleted;
+    scriptPath: string;
+}
+
+/**
+ * Script execution started event data
+ */
+export interface ExecutionStartedData extends BaseScriptEventData {
+    eventType: ScriptEvent.ExecutionStarted;
+    params: Record<string, unknown>;
+}
+
+/**
+ * Script execution progress event data
+ */
+export interface ExecutionProgressData extends BaseScriptEventData {
+    eventType: ScriptEvent.ExecutionProgress;
     progress: number;
     status: string;
     output?: string;
+    resourceUsage?: {
+        peakMemory?: number;
+        averageCpu?: number;
+    };
 }
 
-export interface ExecutionCompletedData extends ScriptEventData {
+/**
+ * Script execution completed event data
+ */
+export interface ExecutionCompletedData extends BaseScriptEventData {
+    eventType: ScriptEvent.ExecutionCompleted;
     result: ExecutionResult;
     duration: number;
 }
 
-export interface ExecutionCancelledData extends ScriptEventData {
+/**
+ * Script execution failed event data
+ */
+export interface ExecutionFailedData extends BaseScriptEventData {
+    eventType: ScriptEvent.ExecutionFailed;
+    error: {
+        message: string;
+        stack?: string;
+    };
+}
+
+/**
+ * Script execution cancelled event data
+ */
+export interface ExecutionCancelledData extends BaseScriptEventData {
+    eventType: ScriptEvent.ExecutionCancelled;
     reason?: string;
     elapsedTime: number;
 }
 
+/**
+ * Dependencies installation started event data
+ */
+export interface DependenciesInstallingData extends BaseScriptEventData {
+    eventType: ScriptEvent.DependenciesInstalling;
+    dependencies: string[];
+}
+
+/**
+ * Dependencies installation completed event data
+ */
+export interface DependenciesInstalledData extends BaseScriptEventData {
+    eventType: ScriptEvent.DependenciesInstalled;
+    installed: string[];
+}
+
+/**
+ * Dependencies installation error event data
+ */
+export interface DependenciesErrorData extends BaseScriptEventData {
+    eventType: ScriptEvent.DependenciesError;
+    error: {
+        message: string;
+        stack?: string;
+    };
+    failedDependencies: string[];
+}
+
+/**
+ * Validation started event data
+ */
+export interface ValidationStartedData extends BaseScriptEventData {
+    eventType: ScriptEvent.ValidationStarted;
+}
+
+/**
+ * Validation completed event data
+ */
+export interface ValidationCompletedData extends BaseScriptEventData {
+    eventType: ScriptEvent.ValidationCompleted;
+    isValid: boolean;
+    errors?: string[];
+}
+
+/**
+ * Validation failed event data
+ */
+export interface ValidationFailedData extends BaseScriptEventData {
+    eventType: ScriptEvent.ValidationFailed;
+    errors: string[];
+}
+
+/**
+ * Cache updated event data
+ */
+export interface CacheUpdatedData extends BaseScriptEventData {
+    eventType: ScriptEvent.CacheUpdated;
+    cacheKey: string;
+    size?: number;
+}
+
+/**
+ * Cache cleared event data
+ */
+export interface CacheClearedData extends BaseScriptEventData {
+    eventType: ScriptEvent.CacheCleared;
+    reason?: string;
+}
+
+/**
+ * Cache error event data
+ */
+export interface CacheErrorData extends BaseScriptEventData {
+    eventType: ScriptEvent.CacheError;
+    error: {
+        message: string;
+        stack?: string;
+    };
+}
+
+/**
+ * Union type of all possible script event data types
+ */
+export type ScriptEventData = 
+    | ScriptCreatedData
+    | ScriptUpdatedData
+    | ScriptDeletedData
+    | ExecutionStartedData
+    | ExecutionProgressData
+    | ExecutionCompletedData
+    | ExecutionFailedData
+    | ExecutionCancelledData
+    | DependenciesInstallingData
+    | DependenciesInstalledData
+    | DependenciesErrorData
+    | ValidationStartedData
+    | ValidationCompletedData
+    | ValidationFailedData
+    | CacheUpdatedData
+    | CacheClearedData
+    | CacheErrorData;
+
+/**
+ * Type guards for event data types
+ */
+export const isExecutionStartedData = (data: ScriptEventData): data is ExecutionStartedData => 
+    data.eventType === ScriptEvent.ExecutionStarted;
+
+export const isExecutionProgressData = (data: ScriptEventData): data is ExecutionProgressData => 
+    data.eventType === ScriptEvent.ExecutionProgress;
+
+export const isExecutionCompletedData = (data: ScriptEventData): data is ExecutionCompletedData => 
+    data.eventType === ScriptEvent.ExecutionCompleted;
+
+export const isExecutionFailedData = (data: ScriptEventData): data is ExecutionFailedData => 
+    data.eventType === ScriptEvent.ExecutionFailed;
+
+export const isExecutionCancelledData = (data: ScriptEventData): data is ExecutionCancelledData => 
+    data.eventType === ScriptEvent.ExecutionCancelled;
+
+/**
+ * Manages script events with type-safe event handling
+ */
 export class ScriptEventManager extends EventEmitter {
     private static instance: ScriptEventManager;
     private eventHistory: Map<string, ScriptEventData[]>;
@@ -78,7 +268,12 @@ export class ScriptEventManager extends EventEmitter {
         });
     }
 
-    private logEvent(_eventType: string, data: ScriptEventData): void {
+    /**
+     * Logs an event to the script's event history
+     * @param eventType Type of the event being logged
+     * @param data Event data to log
+     */
+    private logEvent(_eventType: ScriptEvent, data: ScriptEventData): void {
         const scriptEvents = this.eventHistory.get(data.scriptId) || [];
         
         // Ajouter le nouvel événement
@@ -95,11 +290,24 @@ export class ScriptEventManager extends EventEmitter {
         this.eventHistory.set(data.scriptId, scriptEvents);
     }
 
-    public emitScriptEvent(event: ScriptEvent, data: ScriptEventData): void {
+    /**
+     * Emits a script event with type-safe data
+     * @param event The event type to emit
+     * @param data Typed data for the event
+     */
+    public emitScriptEvent<T extends ScriptEventData>(event: ScriptEvent, data: T): void {
         this.emit(event, data);
     }
 
-    public onScriptEvent(event: ScriptEvent, listener: (data: ScriptEventData) => void): void {
+    /**
+     * Registers a listener for a specific script event type
+     * @param event The event type to listen for
+     * @param listener Callback function that receives the event data
+     */
+    public onScriptEvent<T extends ScriptEventData>(
+        event: ScriptEvent, 
+        listener: (data: T) => void
+    ): void {
         this.on(event, listener);
     }
 
@@ -116,104 +324,160 @@ export class ScriptEventManager extends EventEmitter {
         return events.slice(-limit);
     }
 
-    // Méthodes d'émission d'événements spécifiques
-    public notifyExecutionStarted(scriptId: string, details?: any): void {
-        this.emitScriptEvent(ScriptEvent.ExecutionStarted, {
+    /**
+     * Typed event notification methods
+     */
+    
+    public notifyExecutionStarted(scriptId: string, params: Record<string, unknown>): void {
+        const data: ExecutionStartedData = {
             scriptId,
             timestamp: Date.now(),
-            details
-        });
+            eventType: ScriptEvent.ExecutionStarted,
+            params
+        };
+        this.emitScriptEvent(ScriptEvent.ExecutionStarted, data);
     }
 
-    public notifyExecutionProgress(scriptId: string, progress: number, status: string, output?: string): void {
-        this.emitScriptEvent(ScriptEvent.ExecutionProgress, {
+    public notifyExecutionProgress(
+        scriptId: string, 
+        progress: number, 
+        status: string, 
+        output?: string
+    ): void {
+        const data: ExecutionProgressData = {
             scriptId,
             timestamp: Date.now(),
+            eventType: ScriptEvent.ExecutionProgress,
             progress,
             status,
             output
-        } as ExecutionProgressData);
+        };
+        this.emitScriptEvent(ScriptEvent.ExecutionProgress, data);
     }
 
     public notifyExecutionCancelled(scriptId: string, reason?: string): void {
-        const execution = this.eventHistory.get(scriptId)?.find(
-            e => e.details?.type === ScriptEvent.ExecutionStarted
+        // Find the start time from the execution started event
+        const executionStartedEvent = this.findEventOfType<ExecutionStartedData>(
+            scriptId,
+            ScriptEvent.ExecutionStarted
         );
         
-        const elapsedTime = execution
-            ? Date.now() - new Date(execution.timestamp).getTime()
+        const elapsedTime = executionStartedEvent
+            ? Date.now() - executionStartedEvent.timestamp
             : 0;
 
-        this.emitScriptEvent(ScriptEvent.ExecutionCancelled, {
+        const data: ExecutionCancelledData = {
             scriptId,
             timestamp: Date.now(),
-            details: {
-                reason,
-                elapsedTime
-            }
-        } as ExecutionCancelledData);
+            eventType: ScriptEvent.ExecutionCancelled,
+            reason,
+            elapsedTime
+        };
+        
+        this.emitScriptEvent(ScriptEvent.ExecutionCancelled, data);
     }
 
     public notifyExecutionCompleted(scriptId: string, result: ExecutionResult, duration: number): void {
-        this.emitScriptEvent(ScriptEvent.ExecutionCompleted, {
+        const data: ExecutionCompletedData = {
             scriptId,
             timestamp: Date.now(),
+            eventType: ScriptEvent.ExecutionCompleted,
             result,
             duration
-        } as ExecutionCompletedData);
+        };
+        
+        this.emitScriptEvent(ScriptEvent.ExecutionCompleted, data);
     }
 
     public notifyExecutionFailed(scriptId: string, error: Error): void {
-        this.emitScriptEvent(ScriptEvent.ExecutionFailed, {
+        const data: ExecutionFailedData = {
             scriptId,
             timestamp: Date.now(),
-            details: {
-                error: error.message,
+            eventType: ScriptEvent.ExecutionFailed,
+            error: {
+                message: error.message,
                 stack: error.stack
             }
-        });
+        };
+        
+        this.emitScriptEvent(ScriptEvent.ExecutionFailed, data);
     }
 
     public notifyDependenciesInstalling(scriptId: string, dependencies: string[]): void {
-        this.emitScriptEvent(ScriptEvent.DependenciesInstalling, {
+        const data: DependenciesInstallingData = {
             scriptId,
             timestamp: Date.now(),
-            details: { dependencies }
-        });
+            eventType: ScriptEvent.DependenciesInstalling,
+            dependencies
+        };
+        
+        this.emitScriptEvent(ScriptEvent.DependenciesInstalling, data);
     }
 
     public notifyDependenciesInstalled(scriptId: string, installed: string[]): void {
-        this.emitScriptEvent(ScriptEvent.DependenciesInstalled, {
+        const data: DependenciesInstalledData = {
             scriptId,
             timestamp: Date.now(),
-            details: { installed }
-        });
+            eventType: ScriptEvent.DependenciesInstalled,
+            installed
+        };
+        
+        this.emitScriptEvent(ScriptEvent.DependenciesInstalled, data);
     }
 
     public notifyValidationStarted(scriptId: string): void {
-        this.emitScriptEvent(ScriptEvent.ValidationStarted, {
+        const data: ValidationStartedData = {
             scriptId,
-            timestamp: Date.now()
-        });
+            timestamp: Date.now(),
+            eventType: ScriptEvent.ValidationStarted
+        };
+        
+        this.emitScriptEvent(ScriptEvent.ValidationStarted, data);
     }
 
     public notifyValidationCompleted(scriptId: string, isValid: boolean, errors?: string[]): void {
-        this.emitScriptEvent(ScriptEvent.ValidationCompleted, {
+        const data: ValidationCompletedData = {
             scriptId,
             timestamp: Date.now(),
-            details: { isValid, errors }
-        });
+            eventType: ScriptEvent.ValidationCompleted,
+            isValid,
+            errors
+        };
+        
+        this.emitScriptEvent(ScriptEvent.ValidationCompleted, data);
     }
 
-    public notifyCacheUpdated(scriptId: string, details?: any): void {
-        this.emitScriptEvent(ScriptEvent.CacheUpdated, {
+    public notifyCacheUpdated(scriptId: string, cacheKey: string, size?: number): void {
+        const data: CacheUpdatedData = {
             scriptId,
             timestamp: Date.now(),
-            details
-        });
+            eventType: ScriptEvent.CacheUpdated,
+            cacheKey,
+            size
+        };
+        
+        this.emitScriptEvent(ScriptEvent.CacheUpdated, data);
+    }
+    
+    /**
+     * Find an event of a specific type in a script's history
+     * @param scriptId The script ID to search events for
+     * @param eventType The type of event to find
+     * @returns The first matching event or undefined
+     */
+    private findEventOfType<T extends ScriptEventData>(
+        scriptId: string, 
+        eventType: ScriptEvent
+    ): T | undefined {
+        const events = this.eventHistory.get(scriptId) || [];
+        return events.find(event => event.eventType === eventType) as T | undefined;
     }
 
-    // Méthodes utilitaires
+    /**
+     * Gets execution statistics for a script
+     * @param scriptId Script ID to get stats for
+     * @returns Execution statistics including counts and average duration
+     */
     public async getExecutionStats(scriptId: string): Promise<{
         totalExecutions: number;
         successfulExecutions: number;
@@ -221,21 +485,24 @@ export class ScriptEventManager extends EventEmitter {
         averageDuration: number;
     }> {
         const events = this.getScriptEventHistory(scriptId);
-        const executions = events.filter(
-            e => e.details?.type === ScriptEvent.ExecutionCompleted ||
-                 e.details?.type === ScriptEvent.ExecutionFailed
-        );
-
-        const successful = executions.filter(e => e.details?.type === ScriptEvent.ExecutionCompleted);
-        const durations = successful.map(e => (e as ExecutionCompletedData).duration);
+        
+        const completedEvents = events.filter(
+            e => e.eventType === ScriptEvent.ExecutionCompleted
+        ) as ExecutionCompletedData[];
+        
+        const failedEvents = events.filter(
+            e => e.eventType === ScriptEvent.ExecutionFailed
+        ) as ExecutionFailedData[];
+        
+        const durations = completedEvents.map(e => e.duration);
         const avgDuration = durations.length > 0
             ? durations.reduce((a, b) => a + b, 0) / durations.length
             : 0;
 
         return {
-            totalExecutions: executions.length,
-            successfulExecutions: successful.length,
-            failedExecutions: executions.length - successful.length,
+            totalExecutions: completedEvents.length + failedEvents.length,
+            successfulExecutions: completedEvents.length,
+            failedExecutions: failedEvents.length,
             averageDuration: avgDuration
         };
     }

@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import { ScriptManifest, ValidationResult, ValidationError } from '../types';
 
 export class ManifestValidator {
@@ -32,7 +31,7 @@ export class ManifestValidator {
             if (!manifest.script_info[field as keyof typeof manifest.script_info]) {
                 errors.push({
                     field: `script_info.${field}`,
-                    message: `Le champ ${field} est requis dans script_info`
+                    message: `The field ${field} is required in script_info`
                 });
             }
         }
@@ -42,7 +41,7 @@ export class ManifestValidator {
             if (!manifest.execution[field as keyof typeof manifest.execution]) {
                 errors.push({
                     field: `execution.${field}`,
-                    message: `Le champ ${field} est requis dans execution`
+                    message: `The field ${field} is required in execution`
                 });
             }
         }
@@ -54,7 +53,7 @@ export class ManifestValidator {
         if (!versionRegex.test(manifest.script_info.version)) {
             errors.push({
                 field: 'script_info.version',
-                message: 'La version doit suivre le format semver (x.y.z)'
+                message: 'Version must follow semver format (x.y.z)'
             });
         }
 
@@ -63,7 +62,7 @@ export class ManifestValidator {
         if (!pythonVersionRegex.test(manifest.execution.python_version)) {
             errors.push({
                 field: 'execution.python_version',
-                message: 'La version Python doit suivre un format valide (ex: >=3.6)'
+                message: 'Python version must follow a valid format (e.g.: >=3.6)'
             });
         }
 
@@ -73,7 +72,7 @@ export class ManifestValidator {
                 if (!arg.name || !arg.type || !arg.description) {
                     errors.push({
                         field: `execution.arguments[${index}]`,
-                        message: 'Les arguments doivent avoir un nom, un type et une description'
+                        message: 'Arguments must have a name, type and description'
                     });
                 }
             });
@@ -85,7 +84,7 @@ export class ManifestValidator {
                 if (!key || !value) {
                     errors.push({
                         field: 'execution.environment',
-                        message: 'Les variables d\'environnement doivent avoir une clé et une valeur'
+                        message: 'Environment variables must have a key and value'
                     });
                 }
             });
@@ -98,7 +97,7 @@ export class ManifestValidator {
         if (!await this.fileExists(entryPoint)) {
             errors.push({
                 field: 'execution.entry_point',
-                message: `Le fichier ${entryPoint} n'existe pas`
+                message: `The file ${entryPoint} does not exist`
             });
         }
 
@@ -109,7 +108,7 @@ export class ManifestValidator {
             } catch (error) {
                 errors.push({
                     field: 'validation.input_schema',
-                    message: `Schéma d'entrée invalide: ${(error as Error).message}`
+                    message: `Invalid input schema: ${(error as Error).message}`
                 });
             }
         }
@@ -120,7 +119,7 @@ export class ManifestValidator {
             } catch (error) {
                 errors.push({
                     field: 'validation.output_schema',
-                    message: `Schéma de sortie invalide: ${(error as Error).message}`
+                    message: `Invalid output schema: ${(error as Error).message}`
                 });
             }
         }
@@ -138,7 +137,7 @@ export class ManifestValidator {
     private validateJsonSchema(schema: object): void {
         // Validation basique de la structure du schéma JSON
         if (typeof schema !== 'object' || schema === null) {
-            throw new Error('Le schéma doit être un objet');
+            throw new Error('Schema must be an object');
         }
     }
 
@@ -146,7 +145,7 @@ export class ManifestValidator {
         const parseVersion = (version: string): number[] => {
             const match = version.match(/(\d+)\.(\d+)(?:\.(\d+))?/);
             if (!match) {
-                throw new Error(`Format de version invalide: ${version}`);
+                throw new Error(`Invalid version format: ${version}`);
             }
             return [
                 parseInt(match[1]),

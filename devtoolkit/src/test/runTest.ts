@@ -39,7 +39,7 @@ async function main() {
             }
         });
     } catch (err) {
-        console.error('Erreur lors de l\'exécution des tests:', err);
+        console.error('Error during test execution:', err);
         process.exit(1);
     }
 }

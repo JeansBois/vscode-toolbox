@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { PythonRuntime } from '../../python-runtime/process';
+import { ScriptExecutor as PythonRuntime } from '../../python-runtime/process';
 import {
     InstallResult,
     DependencyConflict,
@@ -33,7 +33,7 @@ export class DependencyManager {
                 }
             }
         } catch (error) {
-            console.error('Erreur lors du chargement des dépendances:', error);
+            console.error('Error while loading dependencies:', error);
             this.installedDependencies.clear();
         }
     }
@@ -44,7 +44,7 @@ export class DependencyManager {
             const data = Object.fromEntries(this.installedDependencies);
             fs.writeFileSync(dependencyFile, JSON.stringify(data, null, 2));
         } catch (error) {
-            console.error('Erreur lors de la sauvegarde des dépendances:', error);
+            console.error('Error while saving dependencies:', error);
         }
     }
 
@@ -52,7 +52,9 @@ export class DependencyManager {
         try {
             const result = await this.pythonRuntime.executeScript(
                 '-m',
-                ['pip', 'show', packageName]
+                {
+                    args: ['pip', 'show', packageName]
+                }
             );
 
             if (result.exitCode === 0) {
@@ -61,7 +63,7 @@ export class DependencyManager {
             }
             return null;
         } catch (error) {
-            console.error(`Erreur lors de la vérification de la version de ${packageName}:`, error);
+            console.error(`Error while verifying version of ${packageName}:`, error);
             return null;
         }
     }
@@ -71,10 +73,10 @@ export class DependencyManager {
         scriptId: string
     ): Promise<InstallResult> {
         const installPath = path.join(this.dependenciesPath, scriptId);
-        console.log(`Installation des dépendances dans ${installPath}`);
+        console.log(`Installing dependencies in ${installPath}`);
 
         try {
-            // Créer le répertoire d'installation si nécessaire
+            // Create installation directory if needed
             await fs.promises.mkdir(installPath, { recursive: true });
 
             const installed: string[] = [];
@@ -84,7 +86,9 @@ export class DependencyManager {
                 try {
                     const result = await this.pythonRuntime.executeScript(
                         '-m',
-                        ['pip', 'install', '--target', installPath, dep]
+                        {
+                            args: ['pip', 'install', '--target', installPath, dep]
+                        }
                     );
 
                     if (result.exitCode === 0) {
@@ -97,13 +101,13 @@ export class DependencyManager {
                                 scriptId
                             });
                         } else {
-                            errors.push(`Impossible de vérifier la version de ${dep}`);
+                            errors.push(`Unable to verify version of ${dep}`);
                         }
                     } else {
-                        errors.push(`Erreur lors de l'installation de ${dep}: ${result.stderr}`);
+                        errors.push(`Error during installation of ${dep}: ${result.stderr}`);
                     }
                 } catch (error) {
-                    errors.push(`Exception lors de l'installation de ${dep}: ${error}`);
+                    errors.push(`Exception during installation of ${dep}: ${error}`);
                 }
             }
 
@@ -118,24 +122,24 @@ export class DependencyManager {
             return {
                 success: false,
                 installed: [],
-                errors: [`Erreur lors de l'installation des dépendances: ${error}`]
+                errors: [`Error during dependency installation: ${error}`]
             };
         }
     }
 
     public async uninstallDependencies(scriptId: string): Promise<boolean> {
         const installPath = path.join(this.dependenciesPath, scriptId);
-        console.log(`Suppression des dépendances de ${installPath}`);
+        console.log(`Removing dependencies from ${installPath}`);
 
         try {
-            // Supprimer les entrées de la map
+            // Remove entries from the map
             for (const [pkg, info] of this.installedDependencies.entries()) {
                 if (info.scriptId === scriptId) {
                     this.installedDependencies.delete(pkg);
                 }
             }
 
-            // Supprimer le répertoire
+            // Remove the directory
             if (fs.existsSync(installPath)) {
                 await fs.promises.rm(installPath, { recursive: true, force: true });
             }
@@ -143,7 +147,7 @@ export class DependencyManager {
             this.saveInstalledDependencies();
             return true;
         } catch (error) {
-            console.error(`Erreur lors de la désinstallation des dépendances: ${error}`);
+            console.error(`Error during dependency uninstallation: ${error}`);
             return false;
         }
     }

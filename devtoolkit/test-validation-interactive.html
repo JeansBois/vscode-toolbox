@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevToolkit Message Validation Interactive Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #0078d4;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .message-editor {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .validation-output {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            min-height: 300px;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            font-family: 'Courier New', monospace;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #005a9e;
+        }
+        .templates {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+            max-height: 300px;
+        }
+        .error {
+            color: #d83b01;
+        }
+        .success {
+            color: #107c10;
+        }
+        .template-btn {
+            background-color: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .template-btn:hover {
+            background-color: #e0e0e0;
+        }
+        .controls {
+            margin-bottom: 15px;
+        }
+        .explanation {
+            background-color: #f0f7ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 5px solid #0078d4;
+        }
+    </style>
+</head>
+<body>
+    <h1>DevToolkit Message Validation Interactive Test</h1>
+    
+    <div class="explanation">
+        <h3>How to use this test page</h3>
+        <p>This interactive test allows you to verify the message validation system implemented in the DevToolkit extension. You can:</p>
+        <ol>
+            <li>Select a template message from the predefined examples</li>
+            <li>Edit the message in the JSON editor</li>
+            <li>Click "Validate Message" to test if the message would pass validation</li>
+            <li>View detailed validation results, including any error messages</li>
+        </ol>
+        <p>This test implements the same validation logic used in the extension.</p>
+    </div>
+    
+    <div class="templates">
+        <h3>Message Templates:</h3>
+    </div>
+    
+    <div class="container">
+        <div class="message-editor">
+            <h3>JSON Message Editor</h3>
+            <div class="controls">
+                <button id="validate-btn">Validate Message</button>
+                <button id="clear-btn">Clear</button>
+            </div>
+            <textarea id="message-json">{ 
+    "type": "script",
+    "action": "execute",
+    "scriptId": "test-script-123",
+    "files": ["file1.js", "file2.js"]
+}</textarea>
+        </div>
+        
+        <div class="validation-output">
+            <h3>Validation Result</h3>
+            <pre id="validation-result">Click "Validate Message" to see results</pre>
+        </div>
+    </div>
+    
+    <h2>Message Schema Documentation</h2>
+    
+    <div>
+        <h3>WebView to Extension Messages</h3>
+        <table border="1" style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <th>Type</th>
+                <th>Required Properties</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td>script</td>
+                <td>type, action, scriptId</td>
+                <td>Script execution control messages</td>
+            </tr>
+            <tr>
+                <td>file</td>
+                <td>type, action, paths</td>
+                <td>File selection messages</td>
+            </tr>
+            <tr>
+                <td>theme</td>
+                <td>type, theme</td>
+                <td>Theme switching messages</td>
+            </tr>
+            <tr>
+                <td>alert</td>
+                <td>type, command, text</td>
+                <td>Alert notification messages</td>
+            </tr>
+        </table>
+        
+        <h3>Extension to WebView Messages</h3>
+        <table border="1" style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <th>Type</th>
+                <th>Required Properties</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td>script-selected</td>
+                <td>type, scriptId</td>
+                <td>Script selection notification</td>
+            </tr>
+            <tr>
+                <td>script-execution-start</td>
+                <td>type, scriptId</td>
+                <td>Script started notification</td>
+            </tr>
+            <tr>
+                <td>script-execution-complete</td>
+                <td>type, scriptId, success</td>
+                <td>Script completed notification</td>
+            </tr>
+            <tr>
+                <td>script-execution-error</td>
+                <td>type, scriptId, error</td>
+                <td>Script error notification</td>
+            </tr>
+        </table>
+    </div>
+    
+    <script>
+        // Mock of our validation framework
+        const messageSchemas = {
+            'script': {
+                requiredProps: ['type', 'action', 'scriptId'],
+                propValidators: {
+                    'type': (val) => val === 'script',
+                    'action': (val) => typeof val === 'string' && ['select', 'execute', 'cancel'].includes(val),
+                    'scriptId': (val) => typeof val === 'string' && val.length > 0,
+                    'config': (val) => !val || (typeof val === 'object' && val !== null),
+                    'files': (val) => !val || (Array.isArray(val) && val.every(f => typeof f === 'string'))
+                },
+                maxLength: {
+                    'scriptId': 100,
+                    'files': 100 // Maximum number of files
+                }
+            },
+            'file': {
+                requiredProps: ['type', 'action', 'paths'],
+                propValidators: {
+                    'type': (val) => val === 'file',
+                    'action': (val) => typeof val === 'string' && ['select', 'deselect'].includes(val),
+                    'paths': (val) => Array.isArray(val) && val.every(p => typeof p === 'string')
+                },
+                maxLength: {
+                    'paths': 100 // Maximum number of paths
+                }
+            },
+            'theme': {
+                requiredProps: ['type', 'theme'],
+                propValidators: {
+                    'type': (val) => val === 'theme',
+                    'theme': (val) => typeof val === 'string' && ['dark', 'light', 'high-contrast'].includes(val)
+                }
+            },
+            'alert': {
+                requiredProps: ['type', 'command', 'text'],
+                propValidators: {
+                    'type': (val) => val === 'alert',
+                    'command': (val) => val === 'alert',
+                    'text': (val) => typeof val === 'string' && val.length > 0
+                },
+                maxLength: {
+                    'text': 1000 // Maximum length of alert text
+                }
+            },
+            'script-selected': {
+                requiredProps: ['type', 'scriptId'],
+                propValidators: {
+                    'type': (val) => val === 'script-selected',
+                    'scriptId': (val) => typeof val === 'string' && val.length > 0
+                },
+                maxLength: {
+                    'scriptId': 100
+                }
+            },
+            'script-execution-start': {
+                requiredProps: ['type', 'scriptId'],
+                propValidators: {
+                    'type': (val) => val === 'script-execution-start',
+                    'scriptId': (val) => typeof val === 'string' && val.length > 0
+                },
+                maxLength: {
+                    'scriptId': 100
+                }
+            },
+            'script-execution-complete': {
+                requiredProps: ['type', 'scriptId', 'success'],
+                propValidators: {
+                    'type': (val) => val === 'script-execution-complete',
+                    'scriptId': (val) => typeof val === 'string' && val.length > 0,
+                    'success': (val) => typeof val === 'boolean',
+                    'result': (val) => !val || typeof val === 'object'
+                },
+                maxLength: {
+                    'scriptId': 100
+                }
+            },
+            'script-execution-error': {
+                requiredProps: ['type', 'scriptId', 'error'],
+                propValidators: {
+                    'type': (val) => val === 'script-execution-error',
+                    'scriptId': (val) => typeof val === 'string' && val.length > 0,
+                    'error': (val) => typeof val === 'string'
+                },
+                maxLength: {
+                    'scriptId': 100,
+                    'error': 1000
+                }
+            }
+        };
+
+        // Base schema validation
+        function validateMessage(message) {
+            const result = { 
+                valid: true, 
+                errors: [] 
+            };
+
+            // Basic validation
+            if (!message || typeof message !== 'object') {
+                result.valid = false;
+                result.errors.push('Message must be an object');
+                return result;
+            }
+
+            // Type check
+            if (!message.type) {
+                result.valid = false;
+                result.errors.push('Message type is required');
+                return result;
+            }
+
+            // Validate against specific schema
+            const schema = messageSchemas[message.type];
+            if (!schema) {
+                result.valid = false;
+                result.errors.push(`Unknown message type: ${message.type}`);
+                return result;
+            }
+
+            // Check required properties
+            for (const prop of schema.requiredProps) {
+                if (message[prop] === undefined) {
+                    result.valid = false;
+                    result.errors.push(`Required property missing: ${prop}`);
+                }
+            }
+
+            // If required properties are missing, don't continue with validation
+            if (!result.valid) {
+                return result;
+            }
+
+            // Validate property types and values
+            for (const [prop, validator] of Object.entries(schema.propValidators)) {
+                if (message[prop] !== undefined && !validator(message[prop])) {
+                    result.valid = false;
+                    result.errors.push(`Property validation failed: ${prop}`);
+                }
+            }
+
+            // Check max lengths
+            if (schema.maxLength) {
+                for (const [prop, maxLen] of Object.entries(schema.maxLength)) {
+                    const value = message[prop];
+                    if (value) {
+                        if (typeof value === 'string' && value.length > maxLen) {
+                            result.valid = false;
+                            result.errors.push(`Property '${prop}' exceeds max length: ${value.length}/${maxLen}`);
+                        } else if (Array.isArray(value) && value.length > maxLen) {
+                            result.valid = false;
+                            result.errors.push(`Property '${prop}' exceeds max items: ${value.length}/${maxLen}`);
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        // Template messages
+        const templates = [
+            {
+                name: "Valid script message",
+                message: {
+                    type: "script",
+                    action: "execute",
+                    scriptId: "test-script-123",
+                    files: ["file1.js", "file2.js"]
+                }
+            },
+            {
+                name: "Valid file message",
+                message: {
+                    type: "file",
+                    action: "select",
+                    paths: ["path/to/file1.js", "path/to/file2.js"]
+                }
+            },
+            {
+                name: "Valid theme message",
+                message: {
+                    type: "theme",
+                    theme: "dark"
+                }
+            },
+            {
+                name: "Valid alert message",
+                message: {
+                    type: "alert",
+                    command: "alert",
+                    text: "This is an alert message"
+                }
+            },
+            {
+                name: "Valid script-execution-complete message",
+                message: {
+                    type: "script-execution-complete",
+                    scriptId: "test-script-123",
+                    success: true,
+                    result: { output: "Script executed successfully" }
+                }
+            },
+            {
+                name: "Invalid - missing required properties",
+                message: {
+                    type: "script"
+                    // Missing action and scriptId
+                }
+            },
+            {
+                name: "Invalid - unknown type",
+                message: {
+                    type: "unknown-type",
+                    data: "some data"
+                }
+            },
+            {
+                name: "Invalid - wrong property type",
+                message: {
+                    type: "script",
+                    action: "execute",
+                    scriptId: 123, // Should be string
+                    files: ["file1.js"]
+                }
+            },
+            {
+                name: "Invalid - invalid action value",
+                message: {
+                    type: "script",
+                    action: "invalid-action", // Invalid action value
+                    scriptId: "test-script"
+                }
+            },
+            {
+                name: "Invalid - exceeds max length",
+                message: {
+                    type: "script",
+                    action: "execute",
+                    scriptId: "a".repeat(101) // Exceeds max length of 100
+                }
+            }
+        ];
+
+        // DOM elements
+        const messageEditor = document.getElementById('message-json');
+        const validateBtn = document.getElementById('validate-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const validationResult = document.getElementById('validation-result');
+        const templatesContainer = document.querySelector('.templates');
+
+        // Add template buttons
+        templates.forEach(template => {
+            const btn = document.createElement('button');
+            btn.textContent = template.name;
+            btn.classList.add('template-btn');
+            btn.addEventListener('click', () => {
+                messageEditor.value = JSON.stringify(template.message, null, 4);
+            });
+            templatesContainer.appendChild(btn);
+        });
+
+        // Validate button event
+        validateBtn.addEventListener('click', () => {
+            try {
+                const message = JSON.parse(messageEditor.value);
+                const result = validateMessage(message);
+                
+                let resultHtml = '';
+                if (result.valid) {
+                    resultHtml = `<div class="success">✓ Message is valid</div>`;
+                    resultHtml += `<div>Type: ${message.type}</div>`;
+                    resultHtml += `<div>Schema: ${JSON.stringify(messageSchemas[message.type]?.requiredProps || {}, null, 2)}</div>`;
+                } else {
+                    resultHtml = `<div class="error">✗ Message is invalid</div>`;
+                    resultHtml += `<div class="error">Errors:</div>`;
+                    resultHtml += `<ul>`;
+                    result.errors.forEach(err => {
+                        resultHtml += `<li class="error">${err}</li>`;
+                    });
+                    resultHtml += `</ul>`;
+                }
+                
+                validationResult.innerHTML = resultHtml;
+            } catch (e) {
+                validationResult.innerHTML = `<div class="error">JSON Parse Error: ${e.message}</div>`;
+            }
+        });
+
+        // Clear button event
+        clearBtn.addEventListener('click', () => {
+            messageEditor.value = '';
+            validationResult.innerHTML = 'Enter a message and click "Validate Message"';
+        });
+    </script>
+</body>
+</html>
