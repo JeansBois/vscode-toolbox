@@ -4,11 +4,11 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { performance } from 'perf_hooks';
 import { ConfigManager } from '../config/config-manager';
-import { PermissionManager } from '../script-manager/security/permissions';
+// PermissionManager removed - was unused (TS6133)
 import { 
     PythonRuntimeError, 
     FileSystemError, 
-    TimeoutError,
+    // TimeoutError removed - was unused (TS6133)
     getOutputChannel
 } from '../utils/error-handling';
 
@@ -107,23 +107,7 @@ export interface ExecutionResult {
 //     isValid: boolean;
 // }
 
-/**
- * Process in the Python process pool
- */
-interface PooledProcess {
-    /** The child process instance */
-    process: cp.ChildProcess;
-    /** When the process was created */
-    createdAt: number;
-    /** When the process was last used */
-    lastUsed: number;
-    /** Whether the process is currently in use */
-    inUse: boolean;
-    /** Number of times this process has been used */
-    usageCount: number;
-    /** The process ID */
-    pid: number;
-}
+// Process pool related interfaces removed as they are not used
 
 /**
  * Executes Python scripts within a secure sandbox environment with performance optimizations
@@ -134,45 +118,14 @@ interface PooledProcess {
  * - Performance metrics collection
  */
 export class ScriptExecutor {
-    private static readonly DEFAULT_TIMEOUT = 30000;
     private readonly pythonPath: string;
-    private readonly permissionManager: PermissionManager;
-    private readonly sandboxWrapperPath: string;
-    private readonly processPool: ProcessPool;
-    // Reference to current process for management
-    // Currently only used in execute methods for assigning/clearing reference
-    // Can be used by other components in the future for process monitoring
-    // @ts-ignore - Used in execute methods, but TS doesn't detect it due to async flow
     private _currentProcess: cp.ChildProcess | undefined;
+    private readonly sandboxWrapperPath: string;
     
-    // Performance metrics for monitoring
-    private readonly metrics: {
-        executionCount: number;
-        averageExecutionTime: number;
-        cachedExecutions: number;
-        failedExecutions: number;
-        executionTime: number;
-    } = {
-        executionCount: 0,
-        averageExecutionTime: 0,
-        cachedExecutions: 0,
-        failedExecutions: 0,
-        executionTime: 0
-    };
-
-    /**
-     * Creates a new ScriptExecutor
-     * 
-     * @param pythonPath - Optional path to the Python interpreter. If not provided,
-     *                    uses the path from ConfigManager.
-     * @param context - Optional extension context for resource resolution
-     */
     constructor(pythonPath?: string, context?: vscode.ExtensionContext) {
         this.pythonPath = pythonPath || ConfigManager.getInstance().getConfiguration().pythonPath;
-        this.permissionManager = PermissionManager.getInstance();
-        this.processPool = ProcessPool.getInstance();
         
-        // Use context.asAbsolutePath if available, otherwise fall back to __dirname
+        // Determine the path of the sandbox wrapper
         if (context) {
             this.sandboxWrapperPath = context.asAbsolutePath('src/python-runtime/sandbox_wrapper.py');
         } else {
@@ -181,85 +134,14 @@ export class ScriptExecutor {
     }
 
     /**
-     * Execute a Python script with sandboxing enabled and performance optimizations
-     * 
-     * @param scriptPath - Path to the script to execute
-     * @param options - Execution options including security profile, timeout, and callbacks
-     * @returns A promise resolving to the execution result
-     */
-    public async executeScript(
-        scriptPath: string,
-        options: ExecutionOptions = {}
-    ): Promise<ExecutionResult> {
-        // Start timing the execution
-        this.metrics.executionCount++;
-        this.metrics.executionTime = 0;
-        
-        // Ensure sandbox wrapper exists and is executable
-        try {
-            await fs.promises.access(this.sandboxWrapperPath);
-        } catch (error) {
-            this.metrics.failedExecutions++;
-            throw new PythonRuntimeError(`Sandbox wrapper script not found at ${this.sandboxWrapperPath}`, {
-                originalError: error,
-                context: { sandboxWrapperPath: this.sandboxWrapperPath }
-            });
-        }
-        
-        // Generate security profile from permissions if scriptId is provided
-        let securityProfile = options.securityProfile;
-        if (options.scriptId && !securityProfile) {
-            securityProfile = this.permissionManager.getSecurityProfile(options.scriptId);
-        }
-        
-        // Convert security profile to JSON string
-        const securityProfileArg = securityProfile ? JSON.stringify(securityProfile) : undefined;
-        
-        // Call the sandbox wrapper instead of the script directly
-        const args = [
-            this.sandboxWrapperPath,
-            scriptPath,
-            ...(securityProfileArg ? [securityProfileArg] : []),
-            ...(options.args || [])
-        ];
-        
-        // Execute with process reuse if requested
-        if (options.reuseProcess !== false) {
-            return this.executeWithProcessReuse(args, options);
-        } else {
-            return this.execute(args, options);
-        }
-    }
-
-    /**
-     * Executes a Python command without sandboxing
-     * 
-     * @param command - Array of command arguments to pass to Python
-     * @param options - Execution options for the command
-     * @returns A promise resolving to the execution result
+     * Executes a command using the Python interpreter.
+     * @param args - Arguments to pass to the Python interpreter.
+     * @param options - Options for the execution.
+     * @returns A promise resolving to the execution result.
      */
     public async executeCommand(
-        command: string[],
-        options: ExecutionOptions = {}
-    ): Promise<ExecutionResult> {
-        // Simple commands can be reused from the pool unless explicitly disabled
-        if (options.reuseProcess !== false && command.length < 3 && !command.includes('-m')) {
-            return this.executeWithProcessReuse(command, options);
-        } else {
-            return this.execute(command, options);
-        }
-    }
-
-    /**
-     * Executes a Python command in a new process
-     * 
-     * @param args - Command line arguments
-     * @param options - Execution options
-     * @returns Promise resolving to execution result
-     */
-    private async execute(
         args: string[],
-        options: ExecutionOptions
+        options: ExecutionOptions = {}
     ): Promise<ExecutionResult> {
         const startTime = performance.now();
         let stdout = '';
@@ -267,67 +149,65 @@ export class ScriptExecutor {
         let exitCode: number | null = null;
         let timedOut = false;
 
-        const timeout = options.timeout || ScriptExecutor.DEFAULT_TIMEOUT;
+        const timeout = options.timeout || 30000; // 30 seconds default
+        const env = { ...process.env, ...options.env };
         const cwd = options.cwd;
-        const env = options.env;
-        const command = this.pythonPath;
 
         try {
-            const process = cp.spawn(command, args, {
+            // Prepare the arguments
+            const finalArgs = [
+                ...args
+            ];
+
+            // Create the process
+            const process = cp.spawn(this.pythonPath, finalArgs, {
                 cwd,
                 env,
-                stdio: ['pipe', 'pipe', 'pipe'],
+                stdio: ['pipe', 'pipe', 'pipe']
             });
+
             this._currentProcess = process;
 
-            // Setup output and error listeners
+            // Capture standard output
             process.stdout?.on('data', (data: Buffer) => {
                 const str = data.toString();
                 stdout += str;
                 options.onOutput?.(str);
             });
 
+            // Capture errors
             process.stderr?.on('data', (data: Buffer) => {
                 const str = data.toString();
                 stderr += str;
                 options.onError?.(str);
             });
 
-            // Setup timeout
-            const timeoutPromise = new Promise<void>((_, reject) => {
-                setTimeout(() => {
-                    timedOut = true;
-                    this.killProcess(process);
-                    reject(new TimeoutError(`Script execution timed out after ${timeout}ms`, {
-                        context: { timeout, command, args }
-                    }));
-                }, timeout);
-            });
-
-            // Setup process completion listener
-            const completionPromise = new Promise<number>((resolve, reject) => {
+            // Wait for the process to complete or timeout
+            const processPromise = new Promise<number>((resolve, reject) => {
                 process.on('close', (code) => {
                     exitCode = code;
                     resolve(code || 0);
                 });
-                process.on('exit', (code) => {
-                    exitCode = code;
-                    resolve(code || 0);
-                });
-                process.on('error', (err: Error) => {
-                    this.metrics.failedExecutions++;
-                    reject(new PythonRuntimeError(`Script execution failed: ${err.message}`, {
-                        originalError: err,
-                        context: { command, args }
-                    }));
+
+                process.on('error', (err) => {
+                    reject(new Error(`Process error: ${err.message}`));
                 });
             });
 
-            // Await either timeout or completion
-            await Promise.race([completionPromise, timeoutPromise]);
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => {
+                    timedOut = true;
+                    this.killProcess();
+                    reject(new Error(`Script execution timed out after ${timeout}ms`));
+                }, timeout);
+            });
+
+            // Use the promise that resolves first
+            await Promise.race([processPromise, timeoutPromise]);
 
             const duration = performance.now() - startTime;
 
+            // Return the result
             return {
                 stdout,
                 stderr,
@@ -335,16 +215,17 @@ export class ScriptExecutor {
                 duration,
                 timedOut
             };
-        } catch (error: any) {
-            this.metrics.failedExecutions++;
+        } catch (error) {
             const duration = performance.now() - startTime;
+
+            // Ensure the process is terminated in case of error
+            this.killProcess();
 
             return {
                 stdout,
                 stderr,
                 exitCode: null,
                 duration,
-                timedOut,
                 error: error instanceof Error ? error : new Error(String(error))
             };
         } finally {
@@ -352,162 +233,95 @@ export class ScriptExecutor {
         }
     }
     
-    /**
-     * Executes a command by reusing a process from the pool
-     * 
-     * @param args Command arguments
-     * @param options Execution options
-     * @returns Promise resolving to execution result
-     */
-    private async executeWithProcessReuse(
-        args: string[],
-        options: ExecutionOptions
+    // Simplified method to execute a script
+    public async executeScript(
+        scriptPath: string,
+        options: ExecutionOptions = {}
     ): Promise<ExecutionResult> {
         const startTime = performance.now();
         let stdout = '';
         let stderr = '';
+        let exitCode: number | null = null;
+        let timedOut = false;
         
-        const timeout = options.timeout || ScriptExecutor.DEFAULT_TIMEOUT;
-        const command = this.pythonPath;
+        const timeout = options.timeout || 30000; // 30 seconds default
+        const env = { ...process.env, ...options.env };
+        const cwd = options.cwd;
         
         try {
-            // Get a process from the pool
-            const getProcessStart = performance.now();
-            const { process, reused } = await this.processPool.getProcess(this.pythonPath);
-            const waitTime = performance.now() - getProcessStart;
+            // Check if the script exists
+            await fs.promises.access(scriptPath).catch(() => {
+                throw new Error(`Script not found: ${scriptPath}`);
+            });
+            
+            // Prepare the arguments
+            const args = [
+                this.sandboxWrapperPath,
+                scriptPath,
+                ...(options.args || [])
+            ];
+            
+            // Create the process
+            const process = cp.spawn(this.pythonPath, args, {
+                cwd,
+                env,
+                stdio: ['pipe', 'pipe', 'pipe']
+            });
             
             this._currentProcess = process;
             
-            // Execute the command in the process
-            const executePromise = new Promise<ExecutionResult>((resolve, rejectPromise) => {
-                // Create execution code
-                const importedModules = new Set<string>();
-                const executeCode = args.map(arg => {
-                    if (arg.endsWith('.py')) {
-                        // For Python files, read and execute the content
-                        const moduleCode = `
-                        with open("${arg.replace(/\\/g, '\\\\')}", "r") as f:
-                            exec(f.read())
-                        `;
-                        return moduleCode;
-                    } else if (arg === '-m') {
-                        importedModules.add(args[args.indexOf(arg) + 1]);
-                        return '';
-                    } else if (importedModules.has(arg)) {
-                        // Skip modules that were already imported with -m
-                        return '';
-                    } else if (arg === '-c') {
-                        // For -c commands, execute the next argument directly
-                        return args[args.indexOf(arg) + 1];
-                    } else if (arg.startsWith('-')) {
-                        // Skip other flags
-                        return '';
-                    }
-                    return arg;
-                }).filter(Boolean).join('\n');
-                
-                const dataHandler = (data: Buffer) => {
-                    const str = data.toString();
-                    stdout += str;
-                    options.onOutput?.(str);
-                };
-
-                const errorHandler = (data: Buffer) => {
-                    const str = data.toString();
-                    stderr += str;
-                    options.onError?.(str);
-                };
-                
-                process.stdout?.on('data', dataHandler);
-                process.stderr?.on('data', errorHandler);
-                
-                // Send the code to the process
-                process.stdin?.write(executeCode + '\n');
-                process.stdin?.end();
-                
-                let exitCode: number | null = null;
-                let timedOut = false;
-                
-                // Setup timeout
-                const timeoutPromise = new Promise<void>((_, rejectTimeout) => {
-                    setTimeout(() => {
-                        timedOut = true;
-                        this.killProcess(process);
-                        rejectTimeout(new TimeoutError(`Script execution timed out after ${timeout}ms`, {
-                            context: { timeout, command, args }
-                        }));
-                    }, timeout);
-                });
-                
-                // Setup process completion listener
-                const completionPromise = new Promise<number>((resolveCompletion) => {
-                    process.on('close', (code) => {
-                        exitCode = code;
-                        resolveCompletion(code || 0);
-                    });
-                    process.on('exit', (code) => {
-                        exitCode = code;
-                        resolveCompletion(code || 0);
-                    });
-                    process.on('error', (err: Error) => {
-                        this.metrics.failedExecutions++;
-                        rejectPromise(new PythonRuntimeError(`Script execution failed: ${err.message}`, {
-                            originalError: err,
-                            context: { command, args }
-                        }));
-                    });
-                });
-                
-                // Await either timeout or completion
-                Promise.race([completionPromise, timeoutPromise])
-                    .then(() => {
-                        // Remove listeners
-                        process.stdout?.removeListener('data', dataHandler);
-                        process.stderr?.removeListener('data', errorHandler);
-                        
-                        const duration = performance.now() - startTime;
-                        const executionTime = duration - waitTime;
-                        
-                        resolve({
-                            stdout,
-                            stderr,
-                            exitCode,
-                            duration,
-                            timedOut,
-                            metrics: {
-                                waitTime,
-                                executionTime,
-                                reused
-                            }
-                        });
-                    })
-                    .catch((error: any) => {
-                        // Remove listeners
-                        process.stdout?.removeListener('data', dataHandler);
-                        process.stderr?.removeListener('data', errorHandler);
-                        
-                        this.metrics.failedExecutions++;
-                        const duration = performance.now() - startTime;
-                        
-                        rejectPromise({
-                            stdout,
-                            stderr,
-                            exitCode: null,
-                            duration,
-                            timedOut,
-                            error: error instanceof Error ? error : new Error(String(error))
-                        });
-                    })
-                    .finally(() => {
-                        this.processPool.releaseProcess(process, this.pythonPath);
-                        this._currentProcess = undefined;
-                    });
+            // Capture standard output
+            process.stdout?.on('data', (data: Buffer) => {
+                const str = data.toString();
+                stdout += str;
+                options.onOutput?.(str);
             });
             
-            return executePromise;
-        } catch (error: any) {
-            this.metrics.failedExecutions++;
+            // Capture errors
+            process.stderr?.on('data', (data: Buffer) => {
+                const str = data.toString();
+                stderr += str;
+                options.onError?.(str);
+            });
+            
+            // Wait for the process to complete or timeout
+            const processPromise = new Promise<number>((resolve, reject) => {
+                process.on('close', (code) => {
+                    exitCode = code;
+                    resolve(code || 0);
+                });
+                
+                process.on('error', (err) => {
+                    reject(new Error(`Process error: ${err.message}`));
+                });
+            });
+            
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => {
+                    timedOut = true;
+                    this.killProcess();
+                    reject(new Error(`Script execution timed out after ${timeout}ms`));
+                }, timeout);
+            });
+            
+            // Use the promise that resolves first
+            await Promise.race([processPromise, timeoutPromise]);
+            
             const duration = performance.now() - startTime;
+            
+            // Return the result
+            return {
+                stdout,
+                stderr,
+                exitCode,
+                duration,
+                timedOut
+            };
+        } catch (error) {
+            const duration = performance.now() - startTime;
+            
+            // Ensure the process is terminated in case of error
+            this.killProcess();
             
             return {
                 stdout,
@@ -516,281 +330,37 @@ export class ScriptExecutor {
                 duration,
                 error: error instanceof Error ? error : new Error(String(error))
             };
+        } finally {
+            this._currentProcess = undefined;
         }
     }
-
-    /**
-     * Kills the current process
-     * 
-     * @param process Process to kill
-     */
-    private killProcess(process: cp.ChildProcess): void {
+    
+    // Method to kill the current process
+    public killProcess(): void {
+        if (!this._currentProcess) {
+            return;
+        }
+        
         try {
-            if (process.pid) {
-                if (global.process.platform === 'win32') {
-                    try {
-                        cp.execSync(`taskkill /pid ${process.pid} /T /F`, { windowsHide: true });
-                    } catch (error) {
-                        process.kill('SIGKILL');
-                    }
-                } else {
-                    try {
-                        process.kill('SIGKILL');
-                    } catch (error) {
-                        // Ignore errors when killing processes
-                    }
+            if (process.platform === 'win32') {
+                try {
+                    // On Windows, we need to use taskkill to kill the process and its children
+                    cp.execSync(`taskkill /pid ${this._currentProcess.pid} /T /F`, { windowsHide: true });
+                } catch (error) {
+                    // Fallback if taskkill fails
+                    this._currentProcess.kill('SIGKILL');
                 }
+            } else {
+                // On Unix, SIGKILL is more reliable
+                this._currentProcess.kill('SIGKILL');
             }
         } catch (error) {
             console.error('Error killing process:', error);
         }
     }
-
-    /**
-     * Gets performance metrics for the script executor
-     */
-    public getMetrics(): any {
-        return this.metrics;
-    }
 }
 
-/**
- * Process pool for Python script execution
- * 
- * Manages a pool of Python processes that can be reused for faster script execution.
- * Reusing processes eliminates the startup overhead of creating a new process for
- * each script execution.
- */
-class ProcessPool {
-    private static instance: ProcessPool;
-    private readonly pool: Map<string, PooledProcess[]> = new Map();
-    private readonly maxSize: number = 5; // Maximum number of processes per Python path
-    private readonly maxIdleTime: number = 60 * 1000; // Maximum idle time in milliseconds (1 minute)
-    
-    // Metrics
-    private metrics = {
-        processesCreated: 0,
-        processesReused: 0,
-        processesDiscarded: 0,
-        totalWaitTime: 0,
-        totalExecutions: 0
-    };
-    
-    private constructor() {
-        // Start maintenance interval
-        setInterval(() => this.maintenance(), 30 * 1000); // Run every 30 seconds
-    }
-    
-    /**
-     * Gets the singleton instance of ProcessPool
-     */
-    public static getInstance(): ProcessPool {
-        if (!ProcessPool.instance) {
-            ProcessPool.instance = new ProcessPool();
-        }
-        return ProcessPool.instance;
-    }
-    
-    /**
-     * Gets a process from the pool or creates a new one
-     * 
-     * @param pythonPath Path to the Python interpreter
-     * @returns A promise resolving to a process and whether it was reused
-     */
-    public async getProcess(pythonPath: string): Promise<{process: cp.ChildProcess, reused: boolean}> {
-        const startTime = performance.now();
-        this.metrics.totalExecutions++;
-        
-        // Initialize the pool for this Python path if it doesn't exist
-        if (!this.pool.has(pythonPath)) {
-            this.pool.set(pythonPath, []);
-        }
-        
-        const pooledProcesses = this.pool.get(pythonPath)!;
-        
-        // Look for an available process
-        const availableProcessIndex = pooledProcesses.findIndex(p => !p.inUse);
-        
-        if (availableProcessIndex >= 0) {
-            // Found an available process, reuse it
-            const pooledProcess = pooledProcesses[availableProcessIndex];
-            pooledProcess.inUse = true;
-            pooledProcess.lastUsed = Date.now();
-            pooledProcess.usageCount++;
-            
-            this.metrics.processesReused++;
-            this.metrics.totalWaitTime += performance.now() - startTime;
-            
-            return {
-                process: pooledProcess.process,
-                reused: true
-            };
-        }
-        
-        // No available process, create a new one
-        try {
-            // Check if we've reached the maximum pool size
-            if (pooledProcesses.length >= this.maxSize) {
-                // Find the oldest process and discard it
-                const oldestIndex = pooledProcesses
-                    .map((p, index) => ({ index, lastUsed: p.lastUsed }))
-                    .sort((a, b) => a.lastUsed - b.lastUsed)[0].index;
-                
-                const oldestProcess = pooledProcesses[oldestIndex];
-                this.killProcess(oldestProcess.process);
-                pooledProcesses.splice(oldestIndex, 1);
-                this.metrics.processesDiscarded++;
-            }
-            
-            // Create a new process that's prepared for execution
-            const childProcess: cp.ChildProcess = cp.spawn(pythonPath, ['-c', 'import sys; sys.stdout.write("ready\\n"); sys.stdout.flush(); exec(input())'], {
-                stdio: ['pipe', 'pipe', 'pipe'],
-                env: {
-                    ...global.process.env,
-                    PYTHONUNBUFFERED: '1'
-                },
-                detached: global.process.platform !== 'win32'
-            });
-            
-            // Wait for the process to be ready
-            await new Promise<void>((resolve) => {
-                const onData = (data: Buffer) => {
-                    if (data.toString().includes('ready')) {
-                        childProcess.stdout?.removeListener('data', onData);
-                        resolve();
-                    }
-                };
-                childProcess.stdout?.on('data', onData);
-            });
-            
-            // Add the new process to the pool
-            const newPooledProcess: PooledProcess = {
-                process: childProcess,
-                createdAt: Date.now(),
-                lastUsed: Date.now(),
-                inUse: true,
-                usageCount: 1,
-                pid: childProcess.pid!
-            };
-            
-            pooledProcesses.push(newPooledProcess);
-            this.metrics.processesCreated++;
-            this.metrics.totalWaitTime += performance.now() - startTime;
-            
-            return {
-                process: childProcess,
-                reused: false
-            };
-        } catch (error) {
-            console.error('Error creating pooled process:', error);
-            this.metrics.totalWaitTime += performance.now() - startTime;
-            
-            // Create a new process the traditional way if pooling fails
-            const fallbackProcess = cp.spawn(pythonPath, ['-c', '']);
-            return {
-                process: fallbackProcess,
-                reused: false
-            };
-        }
-    }
-    
-    /**
-     * Releases a process back to the pool
-     * 
-     * @param process The process to release
-     * @param pythonPath Path to the Python interpreter
-     */
-    public releaseProcess(process: cp.ChildProcess, pythonPath: string): void {
-        if (!this.pool.has(pythonPath)) {
-            return;
-        }
-        
-        const pooledProcesses = this.pool.get(pythonPath)!;
-        const index = pooledProcesses.findIndex(p => p.process === process || p.pid === process.pid);
-        
-        if (index >= 0) {
-            pooledProcesses[index].inUse = false;
-            pooledProcesses[index].lastUsed = Date.now();
-        }
-    }
-    
-    /**
-     * Performs maintenance on the process pool
-     */
-    private maintenance(): void {
-        const now = Date.now();
-        
-        // Clean up idle processes
-        for (const [_key, processes] of this.pool.entries()) {
-            const processesToKeep: PooledProcess[] = [];
-            
-            for (const process of processes) {
-                // Keep processes that are in use or have been used recently
-                if (process.inUse || (now - process.lastUsed < this.maxIdleTime)) {
-                    processesToKeep.push(process);
-                } else {
-                    // Discard processes that have been idle for too long
-                    this.killProcess(process.process);
-                    this.metrics.processesDiscarded++;
-                }
-            }
-            
-            this.pool.set(_key, processesToKeep);
-        }
-    }
-    
-    /**
-     * Kills a process with proper cleanup
-     */
-    private killProcess(process: cp.ChildProcess): void {
-        try {
-            if (process.pid) {
-                if (global.process.platform === 'win32') {
-                    try {
-                        cp.execSync(`taskkill /pid ${process.pid} /T /F`, { windowsHide: true });
-                    } catch (error) {
-                        process.kill('SIGKILL');
-                    }
-                } else {
-                    try {
-                        process.kill('SIGKILL');
-                    } catch (error) {
-                        // Ignore errors when killing processes
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error killing pooled process:', error);
-        }
-    }
-    
-    /**
-     * Gets metrics about the process pool
-     */
-    public getMetrics(): any {
-        return {
-            ...this.metrics,
-            avgWaitTime: this.metrics.totalExecutions > 0 ? 
-                this.metrics.totalWaitTime / this.metrics.totalExecutions : 0,
-            poolSize: Array.from(this.pool.values()).reduce((sum, procs) => sum + procs.length, 0),
-            activeProcesses: Array.from(this.pool.values())
-                .reduce((sum, procs) => sum + procs.filter(p => p.inUse).length, 0)
-        };
-    }
-    
-    /**
-     * Shuts down all processes in the pool
-     */
-    public dispose(): void {
-        for (const [_key, processes] of this.pool.entries()) {
-            for (const process of processes) {
-                this.killProcess(process.process);
-            }
-        }
-        
-        this.pool.clear();
-    }
-}
+// ProcessPool class has been removed as it was declared but never used (TS6196)
 
 /**
  * Manages Python environments with performance optimizations

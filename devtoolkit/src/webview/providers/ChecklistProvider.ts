@@ -8,7 +8,19 @@ export class ChecklistProvider implements vscode.TreeDataProvider<ChecklistItem>
 
     constructor(
         private checklistManager: ChecklistManager
-    ) {}
+    ) {
+        // Manually refresh on a regular basis since ChecklistManager 
+        // doesn't expose a change event directly
+        if (this.checklistManager) {
+            // Initial refresh
+            this.refresh();
+            
+            // Set up a polling mechanism to refresh the view
+            setInterval(() => {
+                this.refresh();
+            }, 5000); // Refresh every 5 seconds
+        }
+    }
 
     refresh(): void {
         this._onDidChangeTreeData.fire();
@@ -19,35 +31,64 @@ export class ChecklistProvider implements vscode.TreeDataProvider<ChecklistItem>
     }
 
     async getChildren(element?: ChecklistItem): Promise<ChecklistItem[]> {
-        if (element) {
-            return Promise.resolve([]);
-        } else {
-            const items = await this.checklistManager.getItems();
-            return items.map((item: string) => new ChecklistItem(
-                path.basename(item),
-                item,
+        try {
+            if (element) {
+                return Promise.resolve([]);
+            } else {
+                // Get checklist items
+                const items = await this.checklistManager.getItems();
+                
+                // If there are no items, display an information element
+                if (!items || items.length === 0) {
+                    return [new ChecklistItem(
+                        'No items in checklist',
+                        '',
+                        vscode.TreeItemCollapsibleState.None
+                    )];
+                }
+                
+                // Create tree items
+                return items.map(item => new ChecklistItem(
+                    path.basename(item),
+                    item,
+                    vscode.TreeItemCollapsibleState.None
+                ));
+            }
+        } catch (error) {
+            console.error('Error getting checklist items:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            
+            // Return an error item
+            return [new ChecklistItem(
+                `Error loading checklist: ${errorMessage}`,
+                '',
                 vscode.TreeItemCollapsibleState.None
-            ));
+            )];
         }
     }
 }
 
-class ChecklistItem extends vscode.TreeItem {
+export class ChecklistItem extends vscode.TreeItem {
     constructor(
         public readonly label: string,
         public readonly filePath: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState
     ) {
         super(label, collapsibleState);
-        this.tooltip = filePath;
-        this.description = path.relative(vscode.workspace.rootPath || '', filePath);
-        this.iconPath = new vscode.ThemeIcon('check');
-        this.command = {
-            command: 'vscode.open',
-            title: 'Ouvrir le fichier',
-            arguments: [vscode.Uri.file(filePath)]
-        };
+        
+        if (filePath) {
+            this.tooltip = filePath;
+            this.description = path.relative(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '', filePath);
+            this.iconPath = new vscode.ThemeIcon('check');
+            this.command = {
+                command: 'vscode.open',
+                title: 'Open File',
+                arguments: [vscode.Uri.file(filePath)]
+            };
+            this.contextValue = 'checklistItem';
+        } else {
+            // For information elements
+            this.iconPath = new vscode.ThemeIcon('info');
+        }
     }
-
-    contextValue = 'checklistItem';
 }
