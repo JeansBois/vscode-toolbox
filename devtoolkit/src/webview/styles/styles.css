@@ -1,0 +1,81 @@
+.script-item {
+    display: flex;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    cursor: pointer;
+  }
+  
+  .script-item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+  }
+  
+  .script-item.selected {
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+  }
+  
+  .script-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    margin-right: 10px;
+  }
+  
+  .script-item-content {
+    flex: 1;
+  }
+  
+  .script-item-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  
+  .script-item-description {
+    font-size: 0.9em;
+    opacity: 0.8;
+    margin-bottom: 4px;
+  }
+  
+  .script-item-meta {
+    display: flex;
+    font-size: 0.8em;
+    justify-content: space-between;
+  }
+  
+  .script-item-tags {
+    display: flex;
+    gap: 4px;
+  }
+  
+  .badge {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 5px;
+    border-radius: 2px;
+    font-size: 0.8em;
+  }
+  
+  .search-container {
+    padding: 8px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+  }
+  
+  .search-input {
+    width: 100%;
+    padding: 4px 8px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+  }
+  
+  .search-input:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    border-color: transparent;
+  }
+  
+  .no-scripts-message {
+    padding: 20px;
+    text-align: center;
+    color: var(--vscode-disabledForeground);
+  }

@@ -16,8 +16,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { performance, PerformanceObserver } from 'perf_hooks';
-import { ConfigManager } from './config/config-manager';
 import * as messageValidationTest from './test/message-validation-test';
+import { getOutputChannel } from './utils/error-handling';
 
 // Forward declarations of lazily loaded components
 let MainPanel: any;
@@ -108,14 +108,25 @@ class PerformanceMonitor {
 }
 
 /**
- * Lazily imports a module
+ * Lazily imports a module with proper path resolution
  * @param modulePath Path to the module
  * @returns Promise resolving to the imported module
  */
 async function lazyImport(modulePath: string): Promise<any> {
     return await PerformanceMonitor.measure(`import:${modulePath}`, async () => {
-        const module = await import(modulePath);
-        return module;
+        try {
+            // First try with ./ prefix for local modules
+            return await import(`./${modulePath}`);
+        } catch (error) {
+            try {
+                // Try without the ./ prefix
+                return await import(modulePath);
+            } catch (error2) {
+                // Try with absolute path
+                const absolutePath = path.join(__dirname, modulePath);
+                return await import(absolutePath);
+            }
+        }
     });
 }
 
@@ -139,42 +150,81 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     performanceMetrics.activationStart = performance.now();
     
     // Initialize the output channel early for proper logging
-    // We need to import the function directly here since importing at the top level
-    // could cause circular dependencies
     const { getOutputChannel } = await import('./utils/error-handling');
     const outputChannel = getOutputChannel();
     outputChannel.appendLine(`DevToolkit extension activating (${new Date().toLocaleString()})`);
-    
     try {
-        // Preload critical components
+        // Activate basic functionality without lazy loading first
+        outputChannel.appendLine('Initializing with direct imports...');
+        
+        // Import critical components directly
+        const { ConfigManager } = await import('./config/config-manager');
+        ConfigManager.initialize(context);
+        
+        // Set up basic commands
+        const runScriptCommand = vscode.commands.registerCommand('devtoolkit.runScript', async () => {
+            vscode.window.showInformationMessage('Script execution command received!');
+        });
+        
+        const openPanelCommand = vscode.commands.registerCommand('devtoolkit.openPanel', async () => {
+            vscode.window.showInformationMessage('Open panel command received!');
+        });
+        
+        context.subscriptions.push(runScriptCommand, openPanelCommand);
+        outputChannel.appendLine('Basic functionality initialized successfully');
+        
+        // Then continue with the rest of initialization...
+    } catch (error: unknown) {
+        // Handle errors from the basic initialization
+        console.error('Error during basic initialization:', error);
+        const typedError = error instanceof Error ? error : new Error(String(error));
+        outputChannel.appendLine(`ERROR: Basic initialization failed: ${typedError.message}`);
+        throw error; // Re-throw to let VS Code handle it
+    }
+    try {
+        // Initialize critical core components synchronously
         await Promise.all([
             PerformanceMonitor.measure('init:ConfigManager', async () => {
+                const { ConfigManager } = await import('./config/config-manager');
                 ConfigManager.initialize(context);
             }),
-            PerformanceMonitor.measure('init:MainPanel', async () => {
-                const panelModule = await lazyImport('../src/webview/panel');
-                MainPanel = panelModule.MainPanel;
+            PerformanceMonitor.measure('init:ErrorHandler', async () => {
+                await import('./utils/error-handling');
             })
         ]);
         
-        // Register commands with preloaded components
+        // Set global context values
+        await vscode.commands.executeCommand('setContext', 'devtoolkit.initialized', true);
+        
+        // Register commands early to ensure they're available
         registerCommandsWithLazyLoading(context);
         
-        // Other initialization can remain lazy-loaded
-        const pythonInitPromise = initializePythonRuntimeAsync(context);
-        await registerTreeViewProvidersAsync(context);
-        await pythonInitPromise;
+        // Initialize important background services in parallel
+        const initializationPromises = [
+            PerformanceMonitor.measure('init:MainPanel', async () => {
+                const panelModule = await lazyImport('webview/panel');
+                MainPanel = panelModule.MainPanel;
+            }),
+            initializePythonRuntimeAsync(context),
+            registerTreeViewProvidersAsync(context)
+        ];
         
-        // Initialize message validation test
+        // Wait for all initializations to complete
+        await Promise.all(initializationPromises);
+        
+        // Initialize additional test components
         messageValidationTest.activate(context);
         
         // Record performance metrics
         PerformanceMonitor.recordStartupMetrics();
+        
+        outputChannel.appendLine(`DevToolkit extension activated successfully`);
     } catch (error: unknown) {
         // Log any errors during activation
         console.error('Error during extension activation:', error);
         const typedError = error instanceof Error ? error : new Error(String(error));
         outputChannel.appendLine(`ERROR: Extension activation failed: ${typedError.message}`);
+        outputChannel.appendLine(typedError.stack || 'No stack trace available');
         
         // Show error to the user
         vscode.window.showErrorMessage(`DevToolkit extension failed to activate: ${typedError.message}`);
@@ -187,7 +237,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
  * This function offloads the expensive Python detection and initialization
  * to a background task, allowing the extension to activate faster.
  */
-async function initializePythonRuntimeAsync(_context: vscode.ExtensionContext): Promise<void> {
+async function initializePythonRuntimeAsync(context: vscode.ExtensionContext): Promise<void> {
     return PerformanceMonitor.measure('init:PythonRuntime', async () => {
         try {
             // Lazily import PythonRuntime
@@ -197,21 +247,71 @@ async function initializePythonRuntimeAsync(_context: vscode.ExtensionContext): 
             // Initialize Python in background
             let pythonPath: string | undefined;
             try {
+                const outputChannel = getOutputChannel();
+                outputChannel.appendLine('Searching for Python installation...');
+                
                 pythonPath = await PythonRuntime.findPythonPath();
                 if (!pythonPath) {
-                    throw new Error('Failed to find a valid Python interpreter');
+                    const message = 'DevToolkit requires Python but couldn\'t find a valid Python installation';
+                    outputChannel.appendLine(`ERROR: ${message}`);
+                    
+                    // Show error to user with actionable steps
+                    vscode.window.showErrorMessage(
+                        message,
+                        'Install Python',
+                        'Configure Path'
+                    ).then(selection => {
+                        if (selection === 'Install Python') {
+                            vscode.env.openExternal(vscode.Uri.parse('https://www.python.org/downloads/'));
+                        } else if (selection === 'Configure Path') {
+                            vscode.commands.executeCommand(
+                                'workbench.action.openSettings', 
+                                'devtoolkit.pythonPath'
+                            );
+                        }
+                    });
+                    
+                    // Create pythonRuntime with default path anyway
+                    pythonRuntime = new PythonRuntime(undefined, context);
+                    return;
                 }
+                
+                outputChannel.appendLine(`Found Python at: ${pythonPath}`);
                 pythonRuntime = new PythonRuntime(pythonPath, context);
+                
+                // Verify the installation works
+                const testResult = await pythonRuntime.executeCommand(['--version']);
+                if (testResult.exitCode === 0) {
+                    outputChannel.appendLine(`Python version: ${testResult.stdout.trim()}`);
+                } else {
+                    throw new Error(`Python test execution failed: ${testResult.stderr}`);
+                }
             } catch (pythonError: unknown) {
                 const typedError = pythonError instanceof Error ? pythonError : new Error(String(pythonError));
                 console.error('Python initialization error:', typedError);
-                vscode.window.showErrorMessage(`Failed to initialize Python runtime: ${typedError.message}`);
+                
+                // Show actionable error message
+                vscode.window.showErrorMessage(
+                    `Failed to initialize Python runtime: ${typedError.message}`,
+                    'Configure Python Path'
+                ).then(selection => {
+                    if (selection === 'Configure Python Path') {
+                        vscode.commands.executeCommand(
+                            'workbench.action.openSettings', 
+                            'devtoolkit.pythonPath'
+                        );
+                    }
+                });
+                
                 // Create pythonRuntime with default path and context, which will show errors when used
                 pythonRuntime = new PythonRuntime(undefined, context);
             }
         } catch (error: unknown) {
             const typedError = error instanceof Error ? error : new Error(String(error));
             console.error('Error initializing Python runtime:', typedError);
+            
+            // Show error notification
+            vscode.window.showErrorMessage(`DevToolkit Python support error: ${typedError.message}`);
         }
     });
 }
@@ -239,72 +339,73 @@ async function registerTreeViewProvidersAsync(context: vscode.ExtensionContext):
                 showCollapseAll: true
             });
             
-            // Queue the actual providers to be loaded after activation
-            queueMicrotask(async () => {
-                try {
-                    // Load managers if not already loaded
-                    if (!scriptManager) {
-                        const scriptManagerModule = await lazyImport('./script-manager/manager');
-                        ScriptManager = scriptManagerModule.ScriptManager;
-                        scriptManager = new ScriptManager(context);
-                    }
-                    
-                    if (!checklistManager) {
-                        const checklistModule = await lazyImport('./file-manager/checklist');
-                        ChecklistManager = checklistModule.ChecklistManager;
-                        checklistManager = new ChecklistManager(context);
-                    }
-                    
-                    // Load providers
-                    const scriptsProviderModule = await lazyImport('./webview/providers/ScriptsProvider');
-                    ScriptsProvider = scriptsProviderModule.ScriptsProvider;
-                    
-                    const checklistProviderModule = await lazyImport('./webview/providers/ChecklistProvider');
-                    ChecklistProvider = checklistProviderModule.ChecklistProvider;
-                    
-                    // Create and set real providers
-                    const realScriptsProvider = new ScriptsProvider(scriptManager, context.extensionPath);
-                    const realChecklistProvider = new ChecklistProvider(checklistManager);
-                    
-                    // Update views with real providers
-                    await vscode.commands.executeCommand('setContext', 'devtoolkit-scripts.initialized', true);
-                    await vscode.commands.executeCommand('setContext', 'devtoolkit-checklist.initialized', true);
-                    
-                    // Replace the providers
-                    scriptsView.dispose();
-                    checklistView.dispose();
-                    
-                    const newScriptsView = vscode.window.createTreeView('devtoolkit-scripts', {
-                        treeDataProvider: realScriptsProvider,
-                        showCollapseAll: true
-                    });
-                    
-                    const newChecklistView = vscode.window.createTreeView('devtoolkit-checklist', {
-                        treeDataProvider: realChecklistProvider,
-                        showCollapseAll: true
-                    });
-                    
-                    // Register for cleanup
-                    context.subscriptions.push(
-                        newScriptsView,
-                        newChecklistView,
-                        checklistManager
-                    );
-                    
-                } catch (error: unknown) {
-                    const typedError = error instanceof Error ? error : new Error(String(error));
-                    console.error('Error initializing tree providers:', typedError);
-                }
-            });
-            
-            // Add initial views to subscriptions
-            context.subscriptions.push(
-                scriptsView,
-                checklistView
-            );
+            // Load managers immediately but don't block activation
+            try {
+                // Load script manager
+                const scriptManagerModule = await lazyImport('./script-manager/manager');
+                ScriptManager = scriptManagerModule.ScriptManager;
+                scriptManager = new ScriptManager(context);
+                
+                // Load checklist manager
+                const checklistModule = await lazyImport('./file-manager/checklist');
+                ChecklistManager = checklistModule.ChecklistManager;
+                checklistManager = new ChecklistManager(context);
+                
+                // Load providers
+                const scriptsProviderModule = await lazyImport('./webview/providers/ScriptsProvider');
+                ScriptsProvider = scriptsProviderModule.ScriptsProvider;
+                
+                const checklistProviderModule = await lazyImport('./webview/providers/ChecklistProvider');
+                ChecklistProvider = checklistProviderModule.ChecklistProvider;
+                
+                // Create and set real providers
+                const realScriptsProvider = new ScriptsProvider(scriptManager, context.extensionPath);
+                const realChecklistProvider = new ChecklistProvider(checklistManager);
+                
+                // Update views with real providers
+                await vscode.commands.executeCommand('setContext', 'devtoolkit-scripts.initialized', true);
+                await vscode.commands.executeCommand('setContext', 'devtoolkit-checklist.initialized', true);
+                
+                // Replace the providers
+                scriptsView.dispose();
+                checklistView.dispose();
+                
+                const newScriptsView = vscode.window.createTreeView('devtoolkit-scripts', {
+                    treeDataProvider: realScriptsProvider,
+                    showCollapseAll: true
+                });
+                
+                const newChecklistView = vscode.window.createTreeView('devtoolkit-checklist', {
+                    treeDataProvider: realChecklistProvider,
+                    showCollapseAll: true
+                });
+                
+                // Register for cleanup
+                context.subscriptions.push(
+                    newScriptsView,
+                    newChecklistView,
+                    checklistManager
+                );
+            } catch (providersError) {
+                const outputChannel = getOutputChannel();
+                outputChannel.appendLine(`ERROR initializing tree providers: ${providersError}`);
+                console.error('Error initializing tree providers:', providersError);
+                
+                // Keep the placeholder views as fallback
+                context.subscriptions.push(scriptsView, checklistView);
+                
+                // Show user-friendly message
+                vscode.window.showErrorMessage(
+                    'DevToolkit sidebar views could not be fully initialized. Basic functionality will still work.'
+                );
+            }
         } catch (error: unknown) {
             const typedError = error instanceof Error ? error : new Error(String(error));
             console.error('Error setting up tree views:', typedError);
+            getOutputChannel().appendLine(`Error setting up tree views: ${typedError.message}`);
+            
+            // Rethrow to let the activation function handle it
+            throw typedError;
         }
     });
 }
@@ -359,9 +460,16 @@ function registerCommandsWithLazyLoading(context: vscode.ExtensionContext): void
      * - Error handling ensures the UI remains responsive
      */
     const runScriptCommand = vscode.commands.registerCommand('devtoolkit.runScript', async (scriptPath: string) => {
-        console.log(`Executing script: ${scriptPath}`);
+        const outputChannel = getOutputChannel();
+        outputChannel.appendLine(`Executing script: ${scriptPath}`);
+        outputChannel.show(true);
         
         try {
+            // Safety check for path
+            if (!scriptPath) {
+                throw new Error('No script path provided');
+            }
+            
             // Lazily load required components if needed
             if (!scriptManager) {
                 const scriptManagerModule = await lazyImport('./script-manager/manager');
@@ -372,89 +480,115 @@ function registerCommandsWithLazyLoading(context: vscode.ExtensionContext): void
             if (!pythonRuntime) {
                 const pythonModule = await lazyImport('./python-runtime/process');
                 PythonRuntime = pythonModule.PythonRuntime;
-                pythonRuntime = new PythonRuntime(await PythonRuntime.findPythonPath());
+                const pythonPath = await PythonRuntime.findPythonPath();
+                
+                if (!pythonPath) {
+                    throw new Error(
+                        'Python is required but not found. Please install Python or configure the path in settings.'
+                    );
+                }
+                
+                pythonRuntime = new PythonRuntime(pythonPath);
             }
             
             // Validate required components
             if (!scriptManager || !pythonRuntime) {
-                const errorMessage = 'DevToolkit components not properly initialized';
-                await vscode.window.showErrorMessage(`Script execution failed: ${errorMessage}`);
-                console.error('Script command error:', errorMessage);
-                return;
-            }
-            
-            // Validate input
-            if (!scriptPath) {
-                const errorMessage = 'No script path provided';
-                await vscode.window.showErrorMessage(`Script execution failed: ${errorMessage}`);
-                console.error('Script command error:', { scriptPath, error: errorMessage });
-                return;
+                throw new Error('DevToolkit components not properly initialized');
             }
             
             // Performance measurement for script execution
             await PerformanceMonitor.measure(`script:execute:${path.basename(scriptPath)}`, async () => {
-                // Get script content - validate it exists
-                const scriptContent = await scriptManager.getScriptContent(scriptPath);
-                if (!scriptContent) {
-                    throw new Error(`Script not found: ${path.basename(scriptPath)}`);
+                // Get script content and validate it exists
+                const scriptId = path.basename(scriptPath, '.py');
+                
+                // Check if the script exists in the scripts directory
+                let manifest;
+                try {
+                    manifest = await scriptManager.loadScriptManifest(scriptId);
+                    if (!manifest) {
+                        throw new Error(`Script manifest not found: ${scriptId}`);
+                    }
+                } catch (manifestError) {
+                    // If manifest can't be found, proceed with minimal information
+                    outputChannel.appendLine(`Warning: No manifest found for ${scriptId}, running with default settings`);
+                    
+                    // Try to get the script content directly
+                    const scriptContent = await scriptManager.getScriptContent(scriptPath);
+                    if (!scriptContent) {
+                        throw new Error(`Script file not found: ${scriptPath}`);
+                    }
                 }
+                
+                // Prepare for execution - create progress
+                const progressOptions = {
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Running script: ${path.basename(scriptPath)}`,
+                    cancellable: true
+                };
                 
                 // Create a local reference to pythonRuntime to satisfy TypeScript
                 const runtime = pythonRuntime;
                 
                 // Execute with progress indication and cancellation support
-                const result = await vscode.window.withProgress({
-                    location: vscode.ProgressLocation.Notification,
-                    title: `Running script: ${path.basename(scriptPath)}`,
-                    cancellable: true
-                }, async (progress, token) => {
-                    return await new Promise<any>(async (resolve) => {
-                        // Set up cancellation
-                        token.onCancellationRequested(() => {
-                            console.log(`Script execution cancelled by user: ${scriptPath}`);
-                            // Use local reference to avoid TypeScript undefined warning
-                            runtime.killProcess();
-                        });
-                        
-                        // Show progress
-                        progress.report({ message: 'Executing...' });
-                        
-                        try {
-                            // Execute the script with proper error handling using local reference
-                            const execResult = await runtime.executeScript(scriptPath);
-                            resolve(execResult);
-                        } catch (execError: unknown) {
-                            const typedError = execError instanceof Error ? execError : new Error(String(execError));
-                            console.error('Script execution runtime error:', typedError);
-                            resolve({
-                                stdout: '',
-                                stderr: typedError.message,
-                                exitCode: -1,
-                                duration: 0,
-                                error: typedError
-                            });
-                        }
+                const result = await vscode.window.withProgress(progressOptions, async (progress, token) => {
+                    // Set up cancellation
+                    token.onCancellationRequested(() => {
+                        outputChannel.appendLine(`Script execution cancelled by user: ${scriptPath}`);
+                        // Use local reference to avoid TypeScript undefined warning
+                        runtime.killProcess();
                     });
+                    
+                    // Show progress
+                    progress.report({ message: 'Executing...' });
+                    
+                    try {
+                        // Execute the script with proper error handling using local reference
+                        const execOptions = {
+                            onOutput: (output: string) => {
+                                outputChannel.append(output);
+                                // Update progress with latest output
+                                progress.report({ 
+                                    message: `Running... (${output.split('\n').pop() || ''})`.substring(0, 60)
+                                });
+                            },
+                            onError: (error: string) => {
+                                outputChannel.append(`ERROR: ${error}`);
+                            },
+                            scriptId: scriptId
+                        };
+                        
+                        const execResult = await runtime.executeScript(scriptPath, execOptions);
+                        return execResult;
+                    } catch (execError: unknown) {
+                        const typedError = execError instanceof Error ? execError : new Error(String(execError));
+                        console.error('Script execution runtime error:', typedError);
+                        outputChannel.appendLine(`Execution error: ${typedError.message}`);
+                        
+                        return {
+                            stdout: '',
+                            stderr: typedError.message,
+                            exitCode: -1,
+                            duration: 0,
+                            error: typedError
+                        };
+                    }
                 });
                 
                 // Handle the result
                 if (result.exitCode === 0) {
-                    const successMessage = `Script executed successfully: ${path.basename(scriptPath)}`;
+                    const successMessage = `Script executed successfully in ${result.duration.toFixed(1)}ms: ${path.basename(scriptPath)}`;
+                    outputChannel.appendLine(`SUCCESS: ${successMessage}`);
                     await vscode.window.showInformationMessage(successMessage);
-                    console.log(successMessage);
                 } else {
                     // Format error details for display
                     const errorDetails = result.stderr ? `: ${result.stderr}` : '';
                     const errorMessage = `Script execution failed with exit code ${result.exitCode}${errorDetails}`;
                     
-                    await vscode.window.showErrorMessage(errorMessage);
-                    
-                    // Log full error for debugging
-                    console.error(`Script execution error:`, {
-                        scriptPath,
-                        exitCode: result.exitCode,
-                        stderr: result.stderr,
-                        stdout: result.stdout
+                    outputChannel.appendLine(`FAILED: ${errorMessage}`);
+                    await vscode.window.showErrorMessage(errorMessage, 'Show Output').then(selection => {
+                        if (selection === 'Show Output') {
+                            outputChannel.show(true);
+                        }
                     });
                 }
             });
@@ -462,9 +596,23 @@ function registerCommandsWithLazyLoading(context: vscode.ExtensionContext): void
             // Extract error message with proper type handling
             const typedError = error instanceof Error ? error : new Error(String(error));
             
-            await vscode.window.showErrorMessage(`Script execution error: ${typedError.message}`);
+            // Log detailed error
+            outputChannel.appendLine(`ERROR: ${typedError.message}`);
+            if (typedError.stack) {
+                outputChannel.appendLine(typedError.stack);
+            }
             
-            // Log full error for debugging
+            // Show user-friendly error with action
+            vscode.window.showErrorMessage(
+                `Script execution error: ${typedError.message}`,
+                'Show Output'
+            ).then(selection => {
+                if (selection === 'Show Output') {
+                    outputChannel.show(true);
+                }
+            });
+            
+            // Log for debugging
             console.error(`Script command error:`, {
                 scriptPath,
                 error: typedError

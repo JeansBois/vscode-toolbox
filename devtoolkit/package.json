@@ -323,7 +323,8 @@
     "test:python": "python -m pytest templates/test/",
     "test:all": "npm run test:coverage && npm run test:python",
     "build-dev": "webpack --mode development",
-    "build-prod": "webpack --mode production"
+    "build-prod": "webpack --mode production",
+    "setup": "npm install && mkdir -p dist && npm run copy-styles && npm run build-dev"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
@@ -335,17 +336,20 @@
     "@typescript-eslint/parser": "^6.15.0",
     "@vscode/codicons": "^0.0.36",
     "@vscode/test-electron": "^2.3.8",
+    "css-loader": "^7.1.2",
     "eslint": "^8.56.0",
     "glob": "^10.3.10",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
     "sinon": "^17.0.1",
+    "style-loader": "^4.0.0",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3",
     "webpack": "^5.97.1",
     "webpack-cli": "^6.0.1"
   },
+  "copy-styles": "mkdir -p dist && cp -r src/webview/styles/*.css dist/",
   "dependencies": {
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",

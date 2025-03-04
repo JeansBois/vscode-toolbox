@@ -442,10 +442,8 @@ export class MainPanel {
         const nonce = this._getNonce();
         const resourceUris = this._resourceUris || this._getResourceUris(extensionUri);
         
-        // Verify all required resources exist
-        if (!resourceUris.webviewJs || !resourceUris.stylesCss || !resourceUris.baseStylesCss) {
-            throw new Error('Required WebView resources not found. Check extension packaging.');
-        }
+        const webviewJs = resourceUris.webviewJs;
+        const codiconCss = resourceUris.codiconCss;
         
         // Create optimized HTML content
         const htmlContent = `<!DOCTYPE html>
@@ -461,12 +459,32 @@ export class MainPanel {
                         img-src ${this._panel.webview.cspSource} https:;
                         font-src ${this._panel.webview.cspSource};
                     ">
-                    <!-- Base styles loaded immediately -->
-                    <link href="${resourceUris.baseStylesCss}" rel="stylesheet" />
+                    <!-- Use inline styles for essential styling -->
+                    <style>
+                        body { 
+                            margin: 0; 
+                            padding: 0;
+                            color: var(--vscode-foreground);
+                            font-size: var(--vscode-font-size);
+                            font-weight: var(--vscode-font-weight);
+                            font-family: var(--vscode-font-family);
+                            background-color: var(--vscode-editor-background);
+                        }
+                        #loading {
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            height: 100vh;
+                        }
+                        #root {
+                            height: 100vh;
+                            display: flex;
+                            flex-direction: column;
+                        }
+                    </style>
                     
-                    <!-- Non-critical styles loaded with low priority -->
-                    <link href="${resourceUris.codiconCss}" rel="stylesheet" media="print" onload="this.media='all'" />
-                    <link href="${resourceUris.stylesCss}" rel="stylesheet" media="print" onload="this.media='all'" />
+                    <!-- Codicon CSS -->
+                    <link href="${codiconCss}" rel="stylesheet" />
                     
                     <!-- Performance monitoring script -->
                     <script nonce="${nonce}">
@@ -476,35 +494,14 @@ export class MainPanel {
                             renderCount: 0,
                             lastRenderTime: 0
                         };
-                        // Report performance metrics back to extension
-                        setInterval(() => {
-                            if (window.vscode) {
-                                window.vscode.postMessage({
-                                    type: 'performance',
-                                    metrics: window.devToolkitPerf
-                                });
-                            }
-                        }, 30000); // Report every 30 seconds
                     </script>
                 </head>
                 <body>
                     <div id="loading">Loading DevToolkit...</div>
                     <div id="root"></div>
                     
-                    <!-- Critical initialization script -->
-                    <script nonce="${nonce}">
-                        // Show loading state immediately
-                        document.getElementById('loading').style.display = 'block';
-                        
-                        // Record script execution in performance metrics
-                        if (window.devToolkitPerf) {
-                            window.devToolkitPerf.scriptLoadTime = performance.now();
-                        }
-                    </script>
-                    
                     <!-- Main app script -->
-                    <script nonce="${nonce}" src="${resourceUris.webviewJs}" 
-                            onload="if(window.devToolkitPerf) window.devToolkitPerf.mainScriptLoaded = performance.now()"></script>
+                    <script nonce="${nonce}" src="${webviewJs}"></script>
                 </body>
             </html>`;
         
@@ -526,8 +523,6 @@ export class MainPanel {
         // Generate and cache URIs
         const uris = {
             webviewJs: this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js')),
-            baseStylesCss: this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'base.css')),
-            stylesCss: this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'styles.css')),
             codiconCss: this._panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css')),
         };
         

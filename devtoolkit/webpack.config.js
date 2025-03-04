@@ -5,12 +5,12 @@ const baseConfig = {
   mode: 'none', // will be set by VS Code
   target: 'node',
   resolve: {
-    extensions: ['.ts', '.js']
+    extensions: ['.ts', '.js', '.tsx', '.jsx', '.css']
   },
   module: {
     rules: [
       {
-        test: /\.ts$/,
+        test: /\.tsx?$/,
         exclude: /node_modules/,
         use: 'ts-loader'
       }
@@ -31,6 +31,10 @@ const extensionConfig = {
   externals: {
     'vscode': 'commonjs vscode' // VS Code extension API
   },
+  // This is important for handling dynamic imports
+  optimization: {
+    splitChunks: false // Don't split chunks
+  }
 };
 
 // WebView bundle
