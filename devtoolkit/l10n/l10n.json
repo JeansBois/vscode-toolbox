@@ -3,9 +3,7 @@
     {
       "name": "package",
       "path": "../src/package.nls.json",
-      "languageIds": {
-        "fr": "../src/package.nls.fr.json"
-      }
+      "languageIds": {}
     }
   ]
 }

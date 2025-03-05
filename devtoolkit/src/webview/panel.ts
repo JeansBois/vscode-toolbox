@@ -11,7 +11,7 @@ export class MainPanel {
     private readonly _panel: vscode.WebviewPanel;
     private _disposables: vscode.Disposable[] = [];
 
-    public static createOrShow(extensionUri: vscode.Uri) {
+    public static async createOrShow(extensionUri: vscode.Uri) {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
@@ -19,6 +19,8 @@ export class MainPanel {
         // If panel already exists, show it
         if (MainPanel.currentPanel) {
             MainPanel.currentPanel._panel.reveal(column);
+            // Refresh the scripts list when shown
+            await MainPanel.currentPanel._listScripts();
             return;
         }
 
@@ -38,6 +40,18 @@ export class MainPanel {
         );
 
         MainPanel.currentPanel = new MainPanel(panel, extensionUri);
+        
+        // Initialize with scripts data after a short delay to ensure WebView is ready
+        setTimeout(async () => {
+            if (MainPanel.currentPanel) {
+                try {
+                    await MainPanel.currentPanel._listScripts();
+                    console.log('Initial scripts list sent to WebView');
+                } catch (error) {
+                    console.error('Error loading initial scripts list:', error);
+                }
+            }
+        }, 500);
     }
 
     private constructor(panel: vscode.WebviewPanel, private readonly _extensionUri: vscode.Uri) {
@@ -73,11 +87,163 @@ export class MainPanel {
     private _handleScriptMessage(message: any) {
         // Process script messages
         console.log('Script message received:', message);
+        
+        if (message.action === 'execute') {
+            this._executeScript(message.scriptId);
+        } else if (message.action === 'list') {
+            this._listScripts();
+        } else if (message.action === 'details') {
+            this._getScriptDetails(message.scriptId);
+        }
     }
 
     private _handleFileMessage(message: any) {
         // Process file messages
         console.log('File message received:', message);
+        
+        if (message.action === 'open') {
+            this._openFile(message.path);
+        } else if (message.action === 'save') {
+            this._saveFile(message.path, message.content);
+        }
+    }
+
+    private async _executeScript(scriptId: string) {
+        try {
+            // Run the script via the command
+            await vscode.commands.executeCommand('devtoolkit.runScript', scriptId);
+            
+            // Send success message back to WebView
+            this.postMessage({
+                type: 'script-success',
+                scriptId: scriptId,
+                content: `Script ${scriptId} executed successfully`
+            });
+        } catch (error) {
+            // Log and send error back to WebView
+            console.error(`Error executing script ${scriptId}:`, error);
+            this.postMessage({
+                type: 'script-error',
+                scriptId: scriptId,
+                content: `Error executing script: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
+    }
+
+    private async _listScripts() {
+        try {
+            // Dynamically import the script manager to avoid circular dependencies
+            const { ScriptManager } = require('../script-manager/manager');
+            const context = { extensionUri: this._extensionUri };
+            const scriptManager = new ScriptManager(context);
+            
+            // Get available scripts
+            const scripts = await scriptManager.getAvailableScripts();
+            
+            // Transform to a simpler format for the WebView
+            interface ScriptInfo {
+                id: string;
+                name: string;
+                description: string;
+                version: string;
+                category: string;
+            }
+
+            interface Script {
+                script_info: ScriptInfo;
+            }
+
+            const scriptList: ScriptInfo[] = scripts.map((script: Script) => ({
+                id: script.script_info.id,
+                name: script.script_info.name,
+                description: script.script_info.description,
+                version: script.script_info.version,
+                category: script.script_info.category
+            }));
+            
+            // Send to WebView
+            this.postMessage({
+                type: 'update-scripts',
+                scripts: scriptList
+            });
+        } catch (error) {
+            console.error('Error listing scripts:', error);
+            this.postMessage({
+                type: 'script-error',
+                content: `Error listing scripts: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
+    }
+
+    private async _getScriptDetails(scriptId: string) {
+        try {
+            // Dynamically import the script manager
+            const { ScriptManager } = require('../script-manager/manager');
+            const context = { extensionUri: this._extensionUri };
+            const scriptManager = new ScriptManager(context);
+            
+            // Get script manifest
+            const manifest = await scriptManager.loadScriptManifest(scriptId);
+            
+            if (manifest) {
+                // Send manifest to WebView
+                this.postMessage({
+                    type: 'script-details',
+                    scriptId: scriptId,
+                    details: manifest
+                });
+            } else {
+                throw new Error(`Script ${scriptId} not found`);
+            }
+        } catch (error) {
+            console.error(`Error getting script details for ${scriptId}:`, error);
+            this.postMessage({
+                type: 'script-error',
+                scriptId: scriptId,
+                content: `Error getting script details: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
+    }
+
+    private async _openFile(filePath: string) {
+        try {
+            const document = await vscode.workspace.openTextDocument(filePath);
+            await vscode.window.showTextDocument(document);
+            
+            this.postMessage({
+                type: 'file-opened',
+                path: filePath
+            });
+        } catch (error) {
+            console.error(`Error opening file ${filePath}:`, error);
+            this.postMessage({
+                type: 'file-error',
+                path: filePath,
+                content: `Error opening file: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
+    }
+
+    private async _saveFile(filePath: string, content: string) {
+        try {
+            const uri = vscode.Uri.file(filePath);
+            const encoder = new TextEncoder();
+            const data = encoder.encode(content);
+            
+            await vscode.workspace.fs.writeFile(uri, data);
+            
+            this.postMessage({
+                type: 'file-saved',
+                path: filePath
+            });
+        } catch (error) {
+            console.error(`Error saving file ${filePath}:`, error);
+            this.postMessage({
+                type: 'file-error',
+                path: filePath,
+                content: `Error saving file: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
     }
 
     public postMessage(message: any) {
@@ -162,6 +328,7 @@ export class MainPanel {
                 </div>
                 <div class="content">
                     <div class="sidebar">
+                        <div id="file-tree"></div>
                         <div id="scripts-list"></div>
                     </div>
                     <div class="panel">

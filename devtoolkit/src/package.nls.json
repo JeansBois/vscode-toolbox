@@ -3,7 +3,14 @@
     "description": "Developer toolkit for VS Code with Python script management",
     "command.openPanel.title": "Open DevToolkit Panel",
     "command.runScript.title": "Run Script",
+    "command.createNewScript.title": "Create New Script",
+    "command.refreshScriptsList.title": "Refresh Scripts List",
+    "command.addToChecklist.title": "Add to Checklist",
+    "command.testMessageValidation.title": "Test Message Validation",
+    "configuration.title": "DevToolkit",
     "viewsContainer.sidebar.title": "DevToolkit",
     "view.scripts.name": "Scripts",
-    "view.checklist.name": "Checklist"
+    "view.scripts.contextualTitle": "DevToolkit Scripts",
+    "view.checklist.name": "Checklist",
+    "view.checklist.contextualTitle": "DevToolkit Checklist"
   }

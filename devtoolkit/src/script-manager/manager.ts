@@ -185,9 +185,12 @@ export class ScriptManager implements vscode.Disposable {
         this._pythonRuntime = new PythonRuntime();
         
         // Configure dependency manager
-        const dependenciesPath = config.globalStorage 
-            ? path.join(context.globalStorageUri.fsPath, 'dependencies')
-            : path.join(this._scriptsPath, 'dependencies');
+        let dependenciesPath = path.join(this._scriptsPath, 'dependencies');
+        
+        // Only use globalStorageUri if it exists and config.globalStorage is true
+        if (config.globalStorage && context.globalStorageUri && context.globalStorageUri.fsPath) {
+            dependenciesPath = path.join(context.globalStorageUri.fsPath, 'dependencies');
+        }
             
         this._dependencyManager = new DependencyManager(
             this._pythonRuntime,
